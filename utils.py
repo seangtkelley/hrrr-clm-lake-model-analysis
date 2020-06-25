@@ -1,4 +1,4 @@
-import os
+import os, sys
 from datetime import date, datetime, timedelta
 import requests
 import subprocess
@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 import contextily as ctx
 from pyproj import Transformer
 from tqdm import tqdm
+import magic
 
 
 DATA_DIR = os.path.join('.', 'data')
@@ -60,21 +61,15 @@ def get_lake_gridpoints_with_meta():
     }
 
 
-# https://stackoverflow.com/questions/43743438/using-tqdm-to-add-a-progress-bar-when-downloading-files
 def download_url_prog(url, filepath):
-    r = requests.get(url, stream=True)
-    total_size = int(r.headers["Content-Length"])
-    downloaded = 0  # keep track of size downloaded so far
-    chunkSize = 1024
-    bars = int(fileSize / chunkSize)
-    print(dict(num_bars=bars))
-    with open(filepath, "wb") as f:
-        for chunk in tqdm(r.iter_content(chunk_size=chunkSize), total=bars, unit="KB", desc=filepath, leave=True):
-            f.write(chunk)
-            downloaded += chunkSize  # increment the downloaded
-            prog = ((downloaded * 100 / fileSize))
-            progress["value"] = (prog)  # *100 #Default max value of tkinter progress is 100
-    return
+    req = requests.get(url, stream=True)
+    file_size = int(req.headers['Content-Length'])
+    chunk_size = 1024  # 1 MB
+    num_bars = int(file_size / chunk_size)
+
+    with open(filepath, 'wb') as fp:
+        for chunk in tqdm(req.iter_content(chunk_size=chunk_size), total=num_bars, unit='KB', desc=filepath, leave=True, file=sys.stdout):
+            fp.write(chunk)
 
 
 def get_hrrrx_lake_output(start_date, end_date, cycle_hours=list(range(24)), pred_hours=list(range(32))):
@@ -109,6 +104,9 @@ def get_hrrrx_lake_output(start_date, end_date, cycle_hours=list(range(24)), pre
                     url = os.path.join(grib2_host, date_dir, filename+'.grib2')
                     grb2_filepath = os.path.join(DATA_DIR, date_dir, filename+'.grib2')
                     download_url_prog(url, grb2_filepath)
+
+                    if 'xml' in magic.from_file(grb2_filepath, mime=True):
+                        break
 
                     # convert to netCDF4
                     convert_cmd = ["wgrib2", grb2_filepath, "-nc4", "-netcdf", nc4_filepath ]
