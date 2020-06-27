@@ -18,7 +18,7 @@ import magic
 DATA_DIR = os.path.join('.', 'data')
 
 
-def get_state_bounds(abbr, ):
+def get_state_bounds(abbr):
     # get bounds for state and convert to epsg:3857
 
     usa_states = gpd.read_file('./data/states_21basic/states.shp')
@@ -33,7 +33,7 @@ def get_state_bounds(abbr, ):
     return state_bounds
 
 
-def get_lake_gridpoints_with_meta():
+def get_lake_gridpoints_with_meta_from_landuse():
     metadata = Dataset("./data/hrrrv4.geo_em.d01.nc", "r", format="NETCDF4")
 
     land_use_points = np.squeeze(metadata.variables['LU_INDEX'][:].data)
@@ -44,19 +44,59 @@ def get_lake_gridpoints_with_meta():
             col_idxs = np.where(land_use_points[i] == 21)[0]
             lake_points.extend( [ [i, col_idx] for col_idx in col_idxs ] )
 
-    longs = np.squeeze(metadata.variables['CLONG'][:].data)
+    lons = np.squeeze(metadata.variables['CLONG'][:].data)
     lats = np.squeeze(metadata.variables['CLAT'][:].data)
     depths = np.squeeze(metadata.variables['LAKE_DEPTH'][:].data)
 
-    lake_longs = [ longs[tuple(point)] for point in lake_points ]
+    lake_lons = [ lons[tuple(point)] for point in lake_points ]
     lake_lats = [ lats[tuple(point)] for point in lake_points ]
     lake_depths = [ depths[tuple(point)] for point in lake_points ]
 
     metadata.close()
     return {
         'points': lake_points,
-        'longs': lake_longs,
-        'lats': lake_lats,
+        'geom':  [ Point(xy) for xy in zip(lake_lons, lake_lats) ],
+        'depths': lake_depths
+    }
+
+
+def get_lake_gridpoints_with_meta_from_landmask():
+    # load metadata file
+    metadata = Dataset("./data/hrrrv4.geo_em.d01.nc", "r", format="NETCDF4")
+
+    land_mask = np.squeeze(metadata.variables['LANDMASK'][:].data)
+    lons = np.squeeze(metadata.variables['CLONG'][:].data)
+    lats = np.squeeze(metadata.variables['CLAT'][:].data)
+
+    # load usa shape file
+    usa_states = gpd.read_file('./data/states_21basic/states.shp')
+
+    lake_points = []
+    lake_geom = []
+    for i in range(len(land_mask)):
+        if len(np.where(land_mask[i] == 1)[0]) != 0:
+
+            col_idxs = np.where(land_mask[i] == 1)[0]
+            water_points = [ [i, col_idx] for col_idx in col_idxs ]
+
+            water_lons = [ lons[tuple(point)] for point in water_points ]
+            water_lats = [ lats[tuple(point)] for point in water_points ]
+
+            water_coords = gpd.GeoSeries([ Point(xy) for xy in zip(water_lons, water_lats) ])
+
+            inland_water_mask = water_coords.intersects(usa_states.unary_union)
+            
+            lake_points.extend( [ water_points[i] for i in range(len(inland_water_mask)) if inland_water_mask[i] ] )
+            lake_geom.extend( [ water_coords[i] for i in range(len(inland_water_mask)) if inland_water_mask[i] ] )
+    
+    depths = np.squeeze(metadata.variables['LAKE_DEPTH'][:].data)
+
+    lake_depths = [ depths[tuple(point)] for point in lake_points ]
+
+    metadata.close()
+    return {
+        'points': lake_points,
+        'geom': lake_geom,
         'depths': lake_depths
     }
 
@@ -77,7 +117,7 @@ def get_hrrrx_lake_output(start_date, end_date, cycle_hours=list(range(24)), pre
     lakes_gdf = None
 
     # get lake grid points
-    lake_meta = get_lake_gridpoints_with_meta()
+    lake_meta = get_lake_gridpoints_with_meta_from_landuse()
 
     # build dir
     base_dir = os.path.join('hrrrX', 'sfc')
@@ -175,7 +215,7 @@ def get_hrrrx_lake_output(start_date, end_date, cycle_hours=list(range(24)), pre
                 
                 # append to geodataframe
                 df = pd.DataFrame(data=data)
-                gdf = gpd.GeoDataFrame(df, crs='epsg:4326', geometry=[ Point(xy) for xy in zip(lake_meta['longs'], lake_meta['lats']) ])
+                gdf = gpd.GeoDataFrame(df, crs='epsg:4326', geometry=lake_meta['geom'])
                 lakes_gdf = gdf if lakes_gdf is None else lakes_gdf.append(gdf, ignore_index=True)
 
         curr_date += timedelta(days=1)
