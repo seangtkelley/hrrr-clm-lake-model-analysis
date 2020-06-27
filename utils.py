@@ -2,6 +2,8 @@ import os, sys
 from datetime import date, datetime, timedelta
 import requests
 import subprocess
+import multiprocessing as mp
+import time
 
 from netCDF4 import Dataset
 import numpy as np
@@ -17,11 +19,12 @@ import magic
 
 DATA_DIR = os.path.join('.', 'data')
 
+# load usa shape file
+usa_states = gpd.read_file(os.path.join(DATA_DIR, 'states_21basic', 'states.shp'))
+
 
 def get_state_bounds(abbr):
     # get bounds for state and convert to epsg:3857
-
-    usa_states = gpd.read_file('./data/states_21basic/states.shp')
 
     state_bounds = usa_states[usa_states.STATE_ABBR == abbr].total_bounds.reshape((2, 2))
 
@@ -34,7 +37,7 @@ def get_state_bounds(abbr):
 
 
 def get_lake_gridpoints_with_meta_from_landuse():
-    metadata = Dataset("./data/hrrrv4.geo_em.d01.nc", "r", format="NETCDF4")
+    metadata = Dataset(os.path.join(DATA_DIR, "hrrrv4.geo_em.d01.nc"), "r", format="NETCDF4")
 
     land_use_points = np.squeeze(metadata.variables['LU_INDEX'][:].data)
 
@@ -60,40 +63,76 @@ def get_lake_gridpoints_with_meta_from_landuse():
     }
 
 
+def intersect(coords):
+        mask = coords.intersects(usa_states.unary_union)
+        time.sleep(1)
+        return mask
+
 def get_lake_gridpoints_with_meta_from_landmask():
+    print("Loading lake points from landmask...")
+
     # load metadata file
-    metadata = Dataset("./data/hrrrv4.geo_em.d01.nc", "r", format="NETCDF4")
+    metadata = Dataset(os.path.join(DATA_DIR, "hrrrv4.geo_em.d01.nc"), "r", format="NETCDF4")
 
-    land_mask = np.squeeze(metadata.variables['LANDMASK'][:].data)
-    lons = np.squeeze(metadata.variables['CLONG'][:].data)
-    lats = np.squeeze(metadata.variables['CLAT'][:].data)
+    lake_points_filepath = os.path.join(DATA_DIR, 'lake_points_from_landmask.npy')
+    if os.path.isfile(lake_points_filepath):
+        with open(lake_points_filepath, 'rb') as f:
+            lake_points = np.load(f)
 
-    # load usa shape file
-    usa_states = gpd.read_file('./data/states_21basic/states.shp')
+        lons = np.squeeze(metadata.variables['CLONG'][:].data)
+        lats = np.squeeze(metadata.variables['CLAT'][:].data)
 
-    lake_points = []
-    lake_geom = []
-    for i in range(len(land_mask)):
-        if len(np.where(land_mask[i] == 1)[0]) != 0:
+        lake_lons = [ lons[tuple(point)] for point in lake_points ]
+        lake_lats = [ lats[tuple(point)] for point in lake_points ]
 
-            col_idxs = np.where(land_mask[i] == 1)[0]
-            water_points = [ [i, col_idx] for col_idx in col_idxs ]
+        lake_geom = [ Point(xy) for xy in zip(lake_lons, lake_lats) ]
 
-            water_lons = [ lons[tuple(point)] for point in water_points ]
-            water_lats = [ lats[tuple(point)] for point in water_points ]
+    else:
 
-            water_coords = gpd.GeoSeries([ Point(xy) for xy in zip(water_lons, water_lats) ])
+        land_mask = np.squeeze(metadata.variables['LANDMASK'][:].data)
+        lons = np.squeeze(metadata.variables['CLONG'][:].data)
+        lats = np.squeeze(metadata.variables['CLAT'][:].data)
 
-            inland_water_mask = water_coords.intersects(usa_states.unary_union)
-            
-            lake_points.extend( [ water_points[i] for i in range(len(inland_water_mask)) if inland_water_mask[i] ] )
-            lake_geom.extend( [ water_coords[i] for i in range(len(inland_water_mask)) if inland_water_mask[i] ] )
-    
+        # get water points
+        water_points = []
+        water_geom = []
+        for i in range(len(land_mask)):
+            if len(np.where(land_mask[i] == 0)[0]) != 0:
+
+                col_idxs = np.where(land_mask[i] == 0)[0]
+                col_water_points = [ [i, col_idx] for col_idx in col_idxs ]
+
+                water_lons = [ lons[tuple(point)] for point in col_water_points ]
+                water_lats = [ lats[tuple(point)] for point in col_water_points ]
+
+                water_points.append(col_water_points)
+                water_geom.append(gpd.GeoSeries([ Point(xy) for xy in zip(water_lons, water_lats) ]))
+
+        # determine which water points lie within inland usa
+        inland_water_mask = []
+        with mp.Pool(mp.cpu_count()-2) as p:
+            with tqdm(total=len(water_geom)) as pbar:
+                for i, out in enumerate(p.imap(intersect, water_geom)):
+                    inland_water_mask.append(out)
+                    pbar.update()
+
+        # filter water points using mask
+        lake_points = []
+        lake_geom = []
+        for i in range(len(inland_water_mask)):
+            lake_points.extend( [ water_points[i][j] for j in range(len(inland_water_mask[i])) if inland_water_mask[i][j] ] )
+            lake_geom.extend( [ water_geom[i][j] for j in range(len(inland_water_mask[i])) if inland_water_mask[i][j] ] )
+
+        # save to file
+        with open(lake_points_filepath, 'wb') as f:
+            np.save(f, lake_points)
+
+    # get lake depth
     depths = np.squeeze(metadata.variables['LAKE_DEPTH'][:].data)
-
     lake_depths = [ depths[tuple(point)] for point in lake_points ]
 
     metadata.close()
+
     return {
         'points': lake_points,
         'geom': lake_geom,
@@ -117,7 +156,7 @@ def get_hrrrx_lake_output(start_date, end_date, cycle_hours=list(range(24)), pre
     lakes_gdf = None
 
     # get lake grid points
-    lake_meta = get_lake_gridpoints_with_meta_from_landuse()
+    lake_meta = get_lake_gridpoints_with_meta_from_landmask()
 
     # build dir
     base_dir = os.path.join('hrrrX', 'sfc')
