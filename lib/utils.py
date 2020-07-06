@@ -4,6 +4,7 @@ import requests
 import subprocess
 import multiprocessing as mp
 import time
+import pathlib
 
 from netCDF4 import Dataset
 import numpy as np
@@ -17,7 +18,7 @@ from tqdm import tqdm
 import magic
 
 
-DATA_DIR = os.path.join('.', 'data')
+DATA_DIR = os.path.join(pathlib.Path(__file__).parent.absolute(), '..', 'data')
 
 # load usa shape file
 usa_states = gpd.read_file(os.path.join(DATA_DIR, 'states_21basic', 'states.shp'))
