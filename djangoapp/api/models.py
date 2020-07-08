@@ -1,4 +1,4 @@
-from django.contrib.gis.db import models
+from django.db import models
 
 
 class HRRRPred(models.Model):
@@ -6,7 +6,8 @@ class HRRRPred(models.Model):
     # index of point in HRRR grid
     grid_idx = models.CharField(max_length=16)
     # lon, lat
-    geom = models.PointField()
+    lon = models.DecimalField(max_digits=7, decimal_places=4)
+    lat = models.DecimalField(max_digits=7, decimal_places=4)
     # HRRR Cycle Date and Hour (UTC)
     fcst_datetime = models.DateTimeField()
     # HRRR Forecast Projection (UTC)
@@ -30,7 +31,8 @@ class Station(models.Model):
     # location description (e.g. mid-lake, offshore of Clark's Point)
     loc_desc = models.CharField(max_length=256)
     # lon, lat
-    geom = models.PointField()
+    lon = models.DecimalField(max_digits=7, decimal_places=4)
+    lat = models.DecimalField(max_digits=7, decimal_places=4)
     # lake surface elevation (m)
     elevation = models.DecimalField(max_digits=4, decimal_places=1)
     # water depth at station/buoy location (m)

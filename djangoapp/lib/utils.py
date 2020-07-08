@@ -1,24 +1,36 @@
 import os, sys
 from datetime import date, datetime, timedelta
+import pytz
 import requests
 import subprocess
 import multiprocessing as mp
 import time
 import pathlib
+from decimal import Decimal
 
 from netCDF4 import Dataset
 import numpy as np
 import pandas as pd
 import geopandas as gpd
+from shapely import wkt
 from shapely.geometry import Point, Polygon
 import matplotlib.pyplot as plt
 import contextily as ctx
 from pyproj import Transformer
 from tqdm import tqdm
 import magic
+from django.conf import settings
+
+from api import models
+from config.settings import PROJECT_BASE_DIR
 
 
-DATA_DIR = os.path.join(pathlib.Path(__file__).parent.absolute(), '..', 'data')
+user = settings.DATABASES['default']['USER']
+password = settings.DATABASES['default']['PASSWORD']
+database_name = settings.DATABASES['default']['NAME']
+database_url = f'postgresql://{user}:{password}@localhost:5432/{database_name}'
+
+DATA_DIR = os.path.join(PROJECT_BASE_DIR, 'data')
 
 # load usa shape file
 usa_states = gpd.read_file(os.path.join(DATA_DIR, 'states_21basic', 'states.shp'))
@@ -59,7 +71,7 @@ def get_lake_gridpoints_with_meta_from_landuse():
     metadata.close()
     return {
         'points': lake_points,
-        'geom':  [ Point(xy) for xy in zip(lake_lons, lake_lats) ],
+        'geom': [ Point(xy) for xy in zip(lake_lons, lake_lats) ],
         'depths': lake_depths
     }
 
@@ -157,7 +169,7 @@ def get_hrrrx_lake_output(start_date, end_date, cycle_hours=list(range(24)), pre
     lakes_gdf = None
 
     # get lake grid points
-    lake_meta = get_lake_gridpoints_with_meta_from_landmask()
+    lake_meta = get_lake_gridpoints_with_meta_from_landuse()
 
     # build dir
     base_dir = os.path.join('hrrrX', 'sfc')
@@ -173,17 +185,30 @@ def get_hrrrx_lake_output(start_date, end_date, cycle_hours=list(range(24)), pre
         if not os.path.isdir(os.path.join(DATA_DIR, date_dir)):
             os.mkdir(os.path.join(DATA_DIR, date_dir))
 
+        fcst_datetimes, pred_datetimes = [], []
+
         for cycle in cycle_hours:
             for pred in pred_hours:
 
+                fcst_datetime = pytz.utc.localize(datetime.fromordinal(curr_date.toordinal()) + timedelta(hours=cycle))
+                pred_datetime = pytz.utc.localize(datetime.fromordinal(curr_date.toordinal()) + timedelta(hours=cycle+pred))
+                print(fcst_datetime)
+
+                # keep list of all datatimes for retrieval later
+                fcst_datetimes.append(fcst_datetime)
+                pred_datetimes.append(pred_datetime)
+
+                # check if already in database
+                if models.HRRRPred.objects.filter(fcst_datetime=fcst_datetime, pred_datetime=pred_datetime).exists():
+                    continue
+
                 # fill meta
                 data = {
-                    'cycle_hour': [cycle]*len(lake_meta['points']),
-                    'fcst_datetime': datetime.fromordinal(curr_date.toordinal()) + timedelta(hours=cycle),
-                    'pred_hour': [pred]*len(lake_meta['points']),
-                    'pred_datetime': datetime.fromordinal(curr_date.toordinal()) + timedelta(hours=pred),
-                    'idx': [ str(point) for point in lake_meta['points'] ],
-                    'depth': lake_meta['depths'],
+                    'grid_idx': [ str(point) for point in lake_meta['points'] ],
+                    'lon': [ geom.x for geom in lake_meta['geom'] ],
+                    'lat': [ geom.y for geom in lake_meta['geom'] ],
+                    'fcst_datetime': [fcst_datetime]*len(lake_meta['points']),
+                    'pred_datetime': [pred_datetime]*len(lake_meta['points']),
                 }
 
                 # build file info
@@ -202,8 +227,7 @@ def get_hrrrx_lake_output(start_date, end_date, cycle_hours=list(range(24)), pre
                             print(f"{filename} not avaiable from {grib2_host}")
 
                             # fill nans
-                            data['water_temp'] = [np.nan]*len(lake_meta['points'])
-                            data['air_temp'] = [np.nan]*len(lake_meta['points'])
+                            data['water_temp'] = [Decimal('NaN')]*len(lake_meta['points'])
 
                     # convert to netCDF4
                     convert_cmd = ["wgrib2", grb2_filepath, "-nc4", "-netcdf", nc4_filepath ]
@@ -214,8 +238,7 @@ def get_hrrrx_lake_output(start_date, end_date, cycle_hours=list(range(24)), pre
                         print(f"Failed to convert {filename} to netcdf")
                         
                         # fill nans
-                        data['water_temp'] = [np.nan]*len(lake_meta['points'])
-                        data['air_temp'] = [np.nan]*len(lake_meta['points'])
+                        data['water_temp'] = [Decimal('NaN')]*len(lake_meta['points'])
 
                 # ensure nc4 file exists
                 if os.path.isfile(nc4_filepath):
@@ -225,39 +248,36 @@ def get_hrrrx_lake_output(start_date, end_date, cycle_hours=list(range(24)), pre
                         
                         # get temps
                         water_temps = np.squeeze(hrrr_output.variables['TMP_surface'][:].data)
-                        air_temps = np.squeeze(hrrr_output.variables['TMP_2maboveground'][:].data)
-
                         lake_water_temps = np.array([ water_temps[tuple(point)] for point in lake_meta['points'] ])
-                        lake_air_temps = np.array([ air_temps[tuple(point)] for point in lake_meta['points'] ])
 
                         # convert K to C
                         lake_water_temps = lake_water_temps - 272.15
-                        lake_air_temps = lake_air_temps - 272.15
 
                         # load lake points as geodataframe
-                        data['water_temp'] = lake_water_temps
-                        data['air_temp'] = lake_air_temps
+                        data['water_temp'] = [ Decimal(temp.item()) for temp in lake_water_temps ]
 
                         hrrr_output.close()
 
-                    except:
+                    except Exception as e:
                         print(f"Failed to read data from {nc4_filepath}")
-                        
+                        print(e)
+
                         # fill nans
-                        data['water_temp'] = [np.nan]*len(lake_meta['points'])
-                        data['air_temp'] = [np.nan]*len(lake_meta['points'])
+                        data['water_temp'] = [Decimal('NaN')]*len(lake_meta['points'])
                     
                 # failsafe (no nc4 and no grib2)
                 else:
                     # fill nans
-                    data['water_temp'] = [np.nan]*len(lake_meta['points'])
-                    data['air_temp'] = [np.nan]*len(lake_meta['points'])
-                
-                # append to geodataframe
-                df = pd.DataFrame(data=data)
-                gdf = gpd.GeoDataFrame(df, crs='epsg:4326', geometry=lake_meta['geom'])
-                lakes_gdf = gdf if lakes_gdf is None else lakes_gdf.append(gdf, ignore_index=True)
+                    data['water_temp'] = [Decimal('NaN')]*len(lake_meta['points'])
+
+                # save to db
+                for i in range(len(lake_meta['points'])):
+                    record = models.HRRRPred(**{ key: values[i] for key, values in data.items() })
+                    record.save()
 
         curr_date += timedelta(days=1)
     
-    return lakes_gdf
+    # load all data from db
+    qs = models.HRRRPred.objects.filter(fcst_datetime__in=fcst_datetimes, pred_datetime__in=pred_datetimes)
+    df = pd.DataFrame.from_records(qs.values())
+    return gpd.GeoDataFrame(df, crs='epsg:4326', geometry=[ Point(xy) for xy in zip(df.lon, df.lat) ])
