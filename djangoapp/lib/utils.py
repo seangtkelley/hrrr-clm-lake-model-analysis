@@ -177,6 +177,8 @@ def get_hrrrx_lake_output(start_date, end_date, cycle_hours=list(range(24)), pre
     # file host
     grib2_host = 'https://pando-rgw01.chpc.utah.edu'
 
+    fcst_datetimes, pred_datetimes = [], []
+
     curr_date = start_date
     while curr_date <= end_date:
         date_str = curr_date.strftime("%Y%m%d")
@@ -185,14 +187,11 @@ def get_hrrrx_lake_output(start_date, end_date, cycle_hours=list(range(24)), pre
         if not os.path.isdir(os.path.join(DATA_DIR, date_dir)):
             os.mkdir(os.path.join(DATA_DIR, date_dir))
 
-        fcst_datetimes, pred_datetimes = [], []
-
         for cycle in cycle_hours:
             for pred in pred_hours:
 
                 fcst_datetime = pytz.utc.localize(datetime.fromordinal(curr_date.toordinal()) + timedelta(hours=cycle))
                 pred_datetime = pytz.utc.localize(datetime.fromordinal(curr_date.toordinal()) + timedelta(hours=cycle+pred))
-                print(fcst_datetime)
 
                 # keep list of all datatimes for retrieval later
                 fcst_datetimes.append(fcst_datetime)
@@ -201,6 +200,8 @@ def get_hrrrx_lake_output(start_date, end_date, cycle_hours=list(range(24)), pre
                 # check if already in database
                 if models.HRRRPred.objects.filter(fcst_datetime=fcst_datetime, pred_datetime=pred_datetime).exists():
                     continue
+
+                print(f"Retrieving {fcst_datetime}")
 
                 # fill meta
                 data = {
@@ -278,6 +279,6 @@ def get_hrrrx_lake_output(start_date, end_date, cycle_hours=list(range(24)), pre
         curr_date += timedelta(days=1)
     
     # load all data from db
-    qs = models.HRRRPred.objects.filter(fcst_datetime__in=fcst_datetimes, pred_datetime__in=pred_datetimes)
+    qs = models.HRRRPred.objects.filter(fcst_datetime__in=fcst_datetimes, pred_datetime__in=pred_datetimes).order_by('fcst_datetime', 'pred_datetime')
     df = pd.DataFrame.from_records(qs.values())
     return gpd.GeoDataFrame(df, crs='epsg:4326', geometry=[ Point(xy) for xy in zip(df.lon, df.lat) ])
