@@ -7,6 +7,7 @@ import multiprocessing as mp
 import time
 import pathlib
 from decimal import Decimal
+import json
 
 from netCDF4 import Dataset
 import numpy as np
@@ -282,3 +283,59 @@ def get_hrrrx_lake_output(start_date, end_date, cycle_hours=list(range(24)), pre
     qs = models.HRRRPred.objects.filter(fcst_datetime__in=fcst_datetimes, pred_datetime__in=pred_datetimes).order_by('fcst_datetime', 'pred_datetime')
     df = pd.DataFrame.from_records(qs.values())
     return gpd.GeoDataFrame(df, crs='epsg:4326', geometry=[ Point(xy) for xy in zip(df.lon, df.lat) ])
+
+
+def load_usgs_seneca_lake_data():
+
+    # file host
+    csv_host = 'https://pando-rgw01.chpc.utah.edu'
+
+    filename_base = 'USGSBuoy-20200608-20200620-SenecaLake'
+
+    csv_filepath = os.path.join(DATA_DIR, 'USGSBuoy', filename_base+'.csv')
+    if not os.path.isfile(csv_filepath):
+        # url = os.path.join(grib2_host, date_dir, filename+'.grib2')
+        # download_url_prog(url, grb2_filepath)
+
+        print('Download not implemented for csv.')
+        json_filepath = os.path.join(DATA_DIR, 'USGSBuoy', filename_base+'.json')
+        if os.path.isfile(json_filepath):
+            # open json
+            with open('../data/USGSBuoy/USGSBuoy-20200608-20200620-SenecaLake.json') as f:
+                data = json.load(f)
+            
+            # get station
+            if models.Station.objects.filter(str_id="usgs_seneca_lake").exists():
+                station = models.Station.objects.filter(str_id="usgs_seneca_lake").first()
+            else:
+                # create station record for Seneca Lake
+                station = models.Station(
+                    str_id="usgs_seneca_lake",
+                    name="Seneca Lake Water Quality Buoy",
+                    owner="Hobart and William Smith Colleges, Finger Lake Institute",
+                    contact_name="John Halfman",
+                    lake_name="Seneca Lake",
+                    loc_desc="mid-lake, offshore of Clark's Point",
+                    lon=Decimal('76.9456'),
+                    lat=Decimal('42.8408'),
+                    sensor_type="YSI/Xylen EXO2 Water Quality Logger",
+                    ob_freq="hourly"
+                )
+                station.save()
+
+            # save to db
+            for i in range(3):
+                for j in range(1, len(data[i]['data'])):
+                    dt = pytz.utc.localize(datetime.utcfromtimestamp(data[i]['data'][j][0]/1000))
+                    if not models.Ob.objects.filter(sensor_name=data[i]['name'], datetime=dt).exists():
+                        record = models.Ob(
+                            station=station,
+                            sensor_name=data[i]['name'],
+                            datetime=dt,
+                            water_temp=Decimal(f"{data[i]['data'][j][1]:.2f}"),
+                            ob_depth=Decimal('NaN')
+                        )
+                        record.save()
+            
+        else:
+            print('JSON file must be manually downloaded.')
