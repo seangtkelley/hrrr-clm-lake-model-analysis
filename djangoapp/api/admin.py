@@ -1,11 +1,15 @@
 from django.contrib import admin
-from .models import HRRRPred, Station, Ob
+from .models import HRRRPred, Lake, Station, Ob
 
 @admin.register(HRRRPred)
 class HRRRPredAdmin(admin.ModelAdmin):
     list_display = ['grid_idx', 'fcst_datetime', 'pred_datetime', 'water_temp']
     ordering = ['-fcst_datetime', '-pred_datetime']
 
+@admin.register(Lake)
+class LakeAdmin(admin.ModelAdmin):
+    list_display = ['name']
+    ordering = ['name']
 
 @admin.register(Station)
 class StationAdmin(admin.ModelAdmin):

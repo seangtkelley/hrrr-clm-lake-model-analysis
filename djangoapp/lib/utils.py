@@ -34,23 +34,83 @@ database_url = f'postgresql://{user}:{password}@localhost:5432/{database_name}'
 DATA_DIR = os.path.join(PROJECT_BASE_DIR, 'data')
 
 # load usa shape file
-usa_states = gpd.read_file(os.path.join(DATA_DIR, 'states_21basic', 'states.shp'))
+USA_STATES = gpd.read_file(os.path.join(DATA_DIR, 'states_21basic', 'states.shp'))
 
 
-def get_state_bounds(abbr):
-    # get bounds for state and convert to epsg:3857
+#
+#   Metadata
+#
 
-    state_bounds = usa_states[usa_states.STATE_ABBR == abbr].total_bounds.reshape((2, 2))
+def load_metadata_into_db():
 
-    transformer = Transformer.from_crs("epsg:4326", "epsg:3857")
+    # read insitu stations file
+    station_meta = pd.read_csv(os.path.join(DATA_DIR, '2020-HRRRxCLM-SPoRT-Insitu-Points-Matchup.csv'))
 
-    state_bounds[0] = transformer.transform(state_bounds[0,1]-0.1, state_bounds[0,0]-0.1)
-    state_bounds[1] = transformer.transform(state_bounds[1,1]+0.1, state_bounds[1,0]+0.1)
-    
-    return state_bounds
+    # find lake shapes
+    na_lakes = gpd.read_file(os.path.join(DATA_DIR, 'na_lakes/hydrography_p_lakes_v2.shp'))
+    na_lakes = na_lakes.to_crs(epsg=4326)
+
+    # load hrrr metadata
+    hrrr_lake_meta = get_hrrr_lake_gridpoints_with_meta_from_landuse()
+    df = pd.DataFrame(hrrr_lake_meta)
+    hrrr_lake_meta = gpd.GeoDataFrame(df, crs='epsg:4326', geometry=[ Point(xy) for xy in zip(df.lon, df.lat) ])
+
+    # load any sst file for metadata
+    sst_water_meta = get_sst_water_gridpoints()
+    df = pd.DataFrame(sst_water_meta)
+    sst_water_meta = gpd.GeoDataFrame(df, crs='epsg:4326', geometry=[ Point(xy) for xy in zip(df.lon, df.lat) ])
+
+    # dict for saving lake records
+    lake_records = {}
+
+    # load lakes
+    for i, station in station_meta[station_meta['LAKE_UIDENT'].notna()].iterrows():
+        # check if lake already in db
+        if models.Lake.objects.filter(uident=station['LAKE_UIDENT']).exists():
+            lake_record = models.Lake.objects.filter(uident=station['LAKE_UIDENT']).first()
+
+        else:
+            lake_meta = na_lakes[na_lakes['UIDENT'] == station['LAKE_UIDENT']]
+            lake_bounds = lake_meta['geometry'].unary_union
+
+            # get hrrr indices
+            if 'lake' in hrrr_lake_meta.columns:
+                hrrr_lake_meta.drop(labels=['lake'], axis="columns", inplace=True)
+            hrrr_lake_meta['lake'] = hrrr_lake_meta.within(lake_bounds)
+
+            # get sst indices
+            if 'lake' in sst_water_meta.columns:
+                sst_water_meta.drop(labels=['lake'], axis="columns", inplace=True)
+            sst_water_meta['lake'] = sst_water_meta.within(lake_bounds)
+
+            # save lake record
+            lake_record = models.Lake(
+                name=lake_meta['NAMEEN'].values[0],
+                uident=lake_meta['UIDENT'].values[0],
+                geojson=str(gpd.GeoSeries([lake_bounds]).__geo_interface__),
+                hrrr_gridpoints=','.join(map(str, hrrr_lake_meta[hrrr_lake_meta['lake']]['grid_idx'])),
+                sst_gridpoints=','.join(map(str, sst_water_meta[sst_water_meta['lake']]['grid_idx']))
+            )
+            lake_record.save()
+
+        # create station record
+        station_record = models.Station(
+            name = f"{station['Source of Obs']}, {station['Lake Name']} - {station['Forecast Location']}",
+            url = station['URL'],
+            contact_name = station['Contact'],
+            lake = lake_record,
+            loc_desc = station['Forecast Location'],
+            lon = station['Lon (dec)'],
+            lat = station['Lat (dec)']
+        )
+        station_record.save()
 
 
-def get_lake_gridpoints_with_meta_from_landuse():
+#
+#   HRRR Data
+#
+
+def get_hrrr_lake_gridpoints_with_meta_from_landuse():
     metadata = Dataset(os.path.join(DATA_DIR, "hrrrv4.geo_em.d01.nc"), "r", format="NETCDF4")
 
     land_use_points = np.squeeze(metadata.variables['LU_INDEX'][:].data)
@@ -71,18 +131,19 @@ def get_lake_gridpoints_with_meta_from_landuse():
 
     metadata.close()
     return {
-        'points': lake_points,
-        'geom': [ Point(xy) for xy in zip(lake_lons, lake_lats) ],
-        'depths': lake_depths
+        'grid_idx': lake_points,
+        'lon': lake_lons,
+        'lat': lake_lats,
+        'depth': lake_depths
     }
 
 
-def intersect(coords):
-        mask = coords.intersects(usa_states.unary_union)
-        time.sleep(1)
-        return mask
+def get_us_intersect_mask(coords):
+    mask = coords.intersects(USA_STATES.unary_union)
+    time.sleep(1)
+    return mask
 
-def get_lake_gridpoints_with_meta_from_landmask():
+def get_hrrr_lake_gridpoints_with_meta_from_landmask():
     print("Loading lake points from landmask...")
 
     # load metadata file
@@ -126,7 +187,7 @@ def get_lake_gridpoints_with_meta_from_landmask():
         inland_water_mask = []
         with mp.Pool(mp.cpu_count()-2) as p:
             with tqdm(total=len(water_geom)) as pbar:
-                for i, out in enumerate(p.imap(intersect, water_geom)):
+                for i, out in enumerate(p.imap(get_us_intersect_mask, water_geom)):
                     inland_water_mask.append(out)
                     pbar.update()
 
@@ -148,9 +209,10 @@ def get_lake_gridpoints_with_meta_from_landmask():
     metadata.close()
 
     return {
-        'points': lake_points,
-        'geom': lake_geom,
-        'depths': lake_depths
+        'grid_idx': lake_points,
+        'lon': [ geom.x for geom in lake_geom ],
+        'lat': [ geom.y for geom in lake_geom ],
+        'depth': lake_depths
     }
 
 
@@ -165,12 +227,12 @@ def download_url_prog(url, filepath):
             fp.write(chunk)
 
 
-def get_hrrrx_lake_output(start_date, end_date, cycle_hours=list(range(24)), pred_hours=list(range(32))):
+def get_hrrrx_lake_data(lake_name, start_date, end_date, cycle_hours=list(range(24)), pred_hours=list(range(32))):
     
     lakes_gdf = None
 
     # get lake grid points
-    lake_meta = get_lake_gridpoints_with_meta_from_landuse()
+    lake_meta = get_hrrr_lake_gridpoints_with_meta_from_landuse()
 
     # build dir
     base_dir = os.path.join('hrrrX', 'sfc')
@@ -206,11 +268,11 @@ def get_hrrrx_lake_output(start_date, end_date, cycle_hours=list(range(24)), pre
 
                 # fill meta
                 data = {
-                    'grid_idx': [ str(point) for point in lake_meta['points'] ],
-                    'lon': [ geom.x for geom in lake_meta['geom'] ],
-                    'lat': [ geom.y for geom in lake_meta['geom'] ],
-                    'fcst_datetime': [fcst_datetime]*len(lake_meta['points']),
-                    'pred_datetime': [pred_datetime]*len(lake_meta['points']),
+                    'grid_idx': [ str(point) for point in lake_meta['grid_idx'] ],
+                    'lon': lake_meta['lon'],
+                    'lat': lake_meta['lat'],
+                    'fcst_datetime': [fcst_datetime]*len(lake_meta['grid_idx']),
+                    'pred_datetime': [pred_datetime]*len(lake_meta['grid_idx']),
                 }
 
                 # build file info
@@ -229,7 +291,7 @@ def get_hrrrx_lake_output(start_date, end_date, cycle_hours=list(range(24)), pre
                             print(f"{filename} not avaiable from {grib2_host}")
 
                             # fill nans
-                            data['water_temp'] = [Decimal('NaN')]*len(lake_meta['points'])
+                            data['water_temp'] = [Decimal('NaN')]*len(lake_meta['grid_idx'])
 
                     # convert to netCDF4
                     convert_cmd = ["wgrib2", grb2_filepath, "-nc4", "-netcdf", nc4_filepath ]
@@ -240,7 +302,7 @@ def get_hrrrx_lake_output(start_date, end_date, cycle_hours=list(range(24)), pre
                         print(f"Failed to convert {filename} to netcdf")
                         
                         # fill nans
-                        data['water_temp'] = [Decimal('NaN')]*len(lake_meta['points'])
+                        data['water_temp'] = [Decimal('NaN')]*len(lake_meta['grid_idx'])
 
                 # ensure nc4 file exists
                 if os.path.isfile(nc4_filepath):
@@ -250,7 +312,7 @@ def get_hrrrx_lake_output(start_date, end_date, cycle_hours=list(range(24)), pre
                         
                         # get temps
                         water_temps = np.squeeze(hrrr_output.variables['TMP_surface'][:].data)
-                        lake_water_temps = np.array([ water_temps[tuple(point)] for point in lake_meta['points'] ])
+                        lake_water_temps = np.array([ water_temps[tuple(point)] for point in lake_meta['grid_idx'] ])
 
                         # convert K to C
                         lake_water_temps = lake_water_temps - 272.15
@@ -265,15 +327,15 @@ def get_hrrrx_lake_output(start_date, end_date, cycle_hours=list(range(24)), pre
                         print(e)
 
                         # fill nans
-                        data['water_temp'] = [Decimal('NaN')]*len(lake_meta['points'])
+                        data['water_temp'] = [Decimal('NaN')]*len(lake_meta['grid_idx'])
                     
                 # failsafe (no nc4 and no grib2)
                 else:
                     # fill nans
-                    data['water_temp'] = [Decimal('NaN')]*len(lake_meta['points'])
+                    data['water_temp'] = [Decimal('NaN')]*len(lake_meta['grid_idx'])
 
                 # save to db
-                for i in range(len(lake_meta['points'])):
+                for i in range(len(lake_meta['grid_idx'])):
                     record = models.HRRRPred(**{ key: values[i] for key, values in data.items() })
                     record.save()
 
@@ -284,6 +346,45 @@ def get_hrrrx_lake_output(start_date, end_date, cycle_hours=list(range(24)), pre
     df = pd.DataFrame.from_records(qs.values())
     return gpd.GeoDataFrame(df, crs='epsg:4326', geometry=[ Point(xy) for xy in zip(df.lon, df.lat) ])
 
+
+#
+#   SPoRT SST Analysis
+#
+
+def get_sst_water_gridpoints():
+    # load any dataset
+    sst_metadata = Dataset(os.path.join(DATA_DIR, "sst_nowcoast_jun2020/20200601_0600_sport_nhemis_sstcomp_2km.nc"), "r", format="NETCDF4")
+
+    water_mask = sst_metadata.variables['Band1'][:].mask
+    water_points = []
+    for i in range(1300, 2800):
+        for j in range(2800, 6100):
+            if water_mask[i][j] == 0:
+                water_points.append([i, j])
+
+    lats = sst_metadata.variables['lat'][:].data
+    lons = sst_metadata.variables['lon'][:].data
+
+    sst_metadata.close()
+    return {
+        'grid_idx': water_points,
+        'lon': [ lons[tuple(point)[1]] for point in water_points ],
+        'lat': [ lats[tuple(point)[0]] for point in water_points ]
+    }
+
+def get_sst_lake_data(lake, start_date, end_date, cycle_hours=list(range(24))):
+    pass
+    # validate cycle hours
+
+    # loop thru date range
+        # loop thru cycle hours and get data
+
+    # save to db
+
+
+#
+#   Observations
+#
 
 def load_usgs_seneca_lake_data():
 
@@ -339,3 +440,20 @@ def load_usgs_seneca_lake_data():
             
         else:
             print('JSON file must be manually downloaded.')
+
+
+#
+#   General Utils
+#
+
+def get_state_bounds(abbr):
+    # get bounds for state and convert to epsg:3857
+
+    state_bounds = USA_STATES[USA_STATES.STATE_ABBR == abbr].total_bounds.reshape((2, 2))
+
+    transformer = Transformer.from_crs("epsg:4326", "epsg:3857")
+
+    state_bounds[0] = transformer.transform(state_bounds[0,1]-0.1, state_bounds[0,0]-0.1)
+    state_bounds[1] = transformer.transform(state_bounds[1,1]+0.1, state_bounds[1,0]+0.1)
+    
+    return state_bounds

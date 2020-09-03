@@ -1,0 +1,17 @@
+Forecast Location,Lake Name,State,LAKE_UIDENT,HRRRx Lake Pt(s),SPoRT Lake Pixel(s),In-Situ Obs Avail,Source of Obs,Contact,Obs Station Id,Lat (dms),Lon (dms),Lat (dec),Lon (dec),URL
+Upper,Seneca Lake,NY,305402,YES,YES,YES,USGS Buoy,,425027076564401,"42�50'26.9""",76�56'44.1,42.84081,-76.94558,https://ny.water.usgs.gov/maps/habs/
+Lower,Cayuga (Ithaca) Lake,NY,304102,YES,YES,YES,Cornell University Station,,NA,,,42.468374,-76.51927,http://www.cayugalake.cornell.edu/weather.php
+Upper,Skaneateles,NY,304402,YES,NO,YES,USGS Buoy,,4236000,"42�56'41.16""","76�25'45.09""",42.94477,-76.42919,https://ny.water.usgs.gov/maps/habs/
+Lower,Lake George,NY,317302,YES,YES,YES,Lake George Association Station,Patrick Dowd of LGA,NA,,,43.426769,73.701973,
+Rouses Point,Lake Champlain,NY,555002,YES,YES,YES,USGS Gage ,,4295000,"44�59'46""","73�21'37""",44.99611,-73.36028,https://waterdata.usgs.gov/nwis/uv/?site_no=04295000
+Valcour Island,Lake Champlain,NY,555002,YES,YES,YES,Lake Champlain Research Institute Buoy,,45178,"44�36'11""","73�23'38""",44.603,-73.394,https://www.ndbc.noaa.gov/station_page.php?station=45178
+Champlain Bridge,Lake Champlain,NY,555002,YES,YES,YES,Lake Champlain Research Institute Buoy,,45188,"44�5'37""�","73�25'22""",44.094,-73.423,https://www.ndbc.noaa.gov/station_page.php?station=45188
+Port Henry,Lake Champlain,NY,555002,YES,YES,YES,USGS Gage,,4294413,"44�03'09.9""","73�27'12.6""",44.05252,-73.4535,https://waterdata.usgs.gov/nwis/uv/?site_no=04294413
+Burlington,Lake Champlain,VT,555002,YES,YES,YES,USGS Gage,,4294500,"44�28'34""","�73�13'19""",44.47611,-73.22194,https://waterdata.usgs.gov/nwis/uv/?site_no=04294500
+Loon Island,Lake Sunapee,NH,,YES,YES,YES,Lake Sunapee Protective Association Buoy,Geoff Lizotte at LSPA,NA,43� 23' 28.64,"72� 3' 28.51""",43.39129,-72.05792,
+Mid,Squam Lake,NH,,YES,YES,YES,UNH Lakes Lay Monitoring Program ,Bob Craycraft at UNH,NA,,,43.762193,-71.521771,
+Mid,Lake Wentworth,NH,,YES,YES,YES,UNH Lakes Lay Monitoring Program,Bob Craycraft at UNH,NA,,,43.602174,-71.163292,
+Mid,Lake Winnipesaukee,NH,311902,YES,YES,YES,UNH Lakes Lay Monitoring Program,Bob Craycraft at UNH,NA,,,43.591532,-71.323397,
+Weirs Beach,Lake Winnipesaukee,NH,311902,YES,YES,YES,State of NH Dept of Environmental Services,,WEIN3,43�36'27,71�27'34,43.61028,-71.45944,https://www4.des.state.nh.us/Rti_home/station_information_display.asp?WID=winni&ID=WEIN3&NAME=Lake+Winnipesaukee&FULLPOND=Full+Lake+=+4.32+ft.+Local+=+504.32+ft.+above+sea+level
+Grand Lake Stream,West Grant Lake,ME,,YES,YES,YES,USGS Gage,,1018900,"45�10'52""","67�46'41""�",45.18111,-67.77806,https://waterdata.usgs.gov/nwis/uv/?site_no=01018900
+Lewy Lake,Grand Falls Lake,ME,299002,YES,NO,YES,USGS Gage,,1019300,"45�13'32.46""","67�34'37.39""�",45.22568,-67.57705,https://waterdata.usgs.gov/nwis/uv/?site_no=01019300

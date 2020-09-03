@@ -16,20 +16,38 @@ class HRRRPred(models.Model):
     water_temp = models.DecimalField(max_digits=4, decimal_places=2)
 
 
+class Lake(models.Model):
+
+    # name of lake
+    name = models.CharField(max_length=256)
+    # uident for hydrography shapefile
+    uident = models.IntegerField()
+    # geometry in geojson espg:4326
+    geojson = models.TextField()
+    
+    # indices of hrrr model points corresponding to lake
+    hrrr_gridpoints = models.TextField()
+    # indices of sport sst points corresponding to lake
+    sst_gridpoints = models.TextField()
+
+
 class Station(models.Model):
 
     # unique string id for lookup
-    str_id = models.CharField(max_length=16)
-    # station or buoy name (e.g. Seneca Lake Water Quality Buoy) 
+    str_id = models.CharField(max_length=16, default=None, null=True)
+    # station or buoy name (e.g. Seneca Lake Water Quality Buoy)
     name = models.CharField(max_length=256)
     # owner (e.g. Hobart and William Smith Colleges, Finger Lake Institute)
-    owner = models.CharField(max_length=256)
+    owner = models.CharField(max_length=256, default=None, null=True)
     # person of contact (e.g Dr. John Halfman)
     contact_name = models.CharField(max_length=256, default=None, null=True)
     # person of contact email
     contact_email = models.CharField(max_length=256, default=None, null=True)
-    # lake name (e.g. Seneca Lake)
-    lake_name = models.CharField(max_length=256)
+    # web access
+    url = models.CharField(max_length=256, default=None, null=True)
+
+    # lake station is located in
+    lake = models.ForeignKey('Lake', on_delete=models.PROTECT)
     # location description (e.g. mid-lake, offshore of Clark's Point)
     loc_desc = models.CharField(max_length=256)
     # lon, lat
@@ -42,7 +60,7 @@ class Station(models.Model):
     # type of water temp sensor (e.g. YSI/Xylen EXO2 Water Quality Logger)
     sensor_type = models.CharField(max_length=256, default=None, null=True)
     # frequency of observation (e.g. hourly)
-    ob_freq = models.CharField(max_length=256)
+    ob_freq = models.CharField(max_length=256, default=None, null=True)
 
 
 class Ob(models.Model):

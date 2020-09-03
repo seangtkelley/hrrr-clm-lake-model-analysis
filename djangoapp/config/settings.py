@@ -81,7 +81,7 @@ WSGI_APPLICATION = 'config.wsgi.application'
 DATABASES = {
     'default': {
          'ENGINE': 'django.contrib.gis.db.backends.postgis',
-         'NAME': 'hrrr_clm_analysis2',
+         'NAME': 'hrrr_clm_analysis3',
          'USER': 'hrrr_clm_analysis_user',
          'PASSWORD': 'dev'
     },
