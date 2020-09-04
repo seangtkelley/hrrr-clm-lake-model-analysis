@@ -1,21 +1,6 @@
 from django.db import models
 
 
-class HRRRPred(models.Model):
-
-    # index of point in HRRR grid
-    grid_idx = models.CharField(max_length=16)
-    # lon, lat
-    lon = models.DecimalField(max_digits=7, decimal_places=4)
-    lat = models.DecimalField(max_digits=7, decimal_places=4)
-    # HRRR Cycle Date and Hour (UTC)
-    fcst_datetime = models.DateTimeField()
-    # HRRR Forecast Projection (UTC)
-    pred_datetime = models.DateTimeField()
-    # deg C
-    water_temp = models.DecimalField(max_digits=4, decimal_places=2)
-
-
 class Lake(models.Model):
 
     # name of lake
@@ -29,6 +14,23 @@ class Lake(models.Model):
     hrrr_gridpoints = models.TextField()
     # indices of sport sst points corresponding to lake
     sst_gridpoints = models.TextField()
+
+
+class HRRRPred(models.Model):
+
+    # lake point is located in
+    lake = models.ForeignKey('Lake', on_delete=models.PROTECT)
+    # index of point in HRRR grid
+    grid_idx = models.CharField(max_length=16)
+    # lon, lat
+    lon = models.DecimalField(max_digits=7, decimal_places=4)
+    lat = models.DecimalField(max_digits=7, decimal_places=4)
+    # HRRR Cycle Date and Hour (UTC)
+    fcst_datetime = models.DateTimeField()
+    # HRRR Forecast Projection (UTC)
+    pred_datetime = models.DateTimeField()
+    # deg C
+    water_temp = models.DecimalField(max_digits=4, decimal_places=2)
 
 
 class Station(models.Model):

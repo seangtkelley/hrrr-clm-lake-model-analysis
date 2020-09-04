@@ -88,8 +88,8 @@ def load_metadata_into_db():
                 name=lake_meta['NAMEEN'].values[0],
                 uident=lake_meta['UIDENT'].values[0],
                 geojson=str(gpd.GeoSeries([lake_bounds]).__geo_interface__),
-                hrrr_gridpoints=','.join(map(str, hrrr_lake_meta[hrrr_lake_meta['lake']]['grid_idx'])),
-                sst_gridpoints=','.join(map(str, sst_water_meta[sst_water_meta['lake']]['grid_idx']))
+                hrrr_gridpoints=';'.join(map(str, hrrr_lake_meta[hrrr_lake_meta['lake']]['grid_idx'])),
+                sst_gridpoints=';'.join(map(str, sst_water_meta[sst_water_meta['lake']]['grid_idx']))
             )
             lake_record.save()
 
@@ -227,14 +227,12 @@ def download_url_prog(url, filepath):
             fp.write(chunk)
 
 
-def get_hrrrx_lake_data(lake_name, start_date, end_date, cycle_hours=list(range(24)), pred_hours=list(range(32))):
-    
-    lakes_gdf = None
+def get_hrrrx_output_for_lake(lake, start_date, end_date, cycle_hours=list(range(24)), pred_hours=list(range(32))):
 
-    # get lake grid points
-    lake_meta = get_hrrr_lake_gridpoints_with_meta_from_landuse()
+    # create list of lake points
+    hrrr_gridpoints = lake.hrrr_gridpoints.split(';')
 
-    # build dir
+    # build hrrrX dir
     base_dir = os.path.join('hrrrX', 'sfc')
 
     # file host
@@ -261,18 +259,21 @@ def get_hrrrx_lake_data(lake_name, start_date, end_date, cycle_hours=list(range(
                 pred_datetimes.append(pred_datetime)
 
                 # check if already in database
-                if models.HRRRPred.objects.filter(fcst_datetime=fcst_datetime, pred_datetime=pred_datetime).exists():
+                if models.HRRRPred.objects.filter(lake=lake, fcst_datetime=fcst_datetime, pred_datetime=pred_datetime).exists():
                     continue
 
                 print(f"Retrieving {fcst_datetime}")
 
                 # fill meta
+                lake_meta = get_hrrr_lake_gridpoints_with_meta_from_landuse()
+                lake_points_str = list(map(str, lake_meta['grid_idx']))
                 data = {
-                    'grid_idx': [ str(point) for point in lake_meta['grid_idx'] ],
-                    'lon': lake_meta['lon'],
-                    'lat': lake_meta['lat'],
-                    'fcst_datetime': [fcst_datetime]*len(lake_meta['grid_idx']),
-                    'pred_datetime': [pred_datetime]*len(lake_meta['grid_idx']),
+                    'lake': [lake]*len(hrrr_gridpoints),
+                    'grid_idx': hrrr_gridpoints,
+                    'lon': [ str(lake_meta['lon'][lake_points_str.index(point)]) for point in hrrr_gridpoints ],
+                    'lat': [ str(lake_meta['lat'][lake_points_str.index(point)]) for point in hrrr_gridpoints ],
+                    'fcst_datetime': [fcst_datetime]*len(hrrr_gridpoints),
+                    'pred_datetime': [pred_datetime]*len(hrrr_gridpoints),
                 }
 
                 # build file info
@@ -291,7 +292,7 @@ def get_hrrrx_lake_data(lake_name, start_date, end_date, cycle_hours=list(range(
                             print(f"{filename} not avaiable from {grib2_host}")
 
                             # fill nans
-                            data['water_temp'] = [Decimal('NaN')]*len(lake_meta['grid_idx'])
+                            data['water_temp'] = [Decimal('NaN')]*len(hrrr_gridpoints)
 
                     # convert to netCDF4
                     convert_cmd = ["wgrib2", grb2_filepath, "-nc4", "-netcdf", nc4_filepath ]
@@ -302,7 +303,7 @@ def get_hrrrx_lake_data(lake_name, start_date, end_date, cycle_hours=list(range(
                         print(f"Failed to convert {filename} to netcdf")
                         
                         # fill nans
-                        data['water_temp'] = [Decimal('NaN')]*len(lake_meta['grid_idx'])
+                        data['water_temp'] = [Decimal('NaN')]*len(hrrr_gridpoints)
 
                 # ensure nc4 file exists
                 if os.path.isfile(nc4_filepath):
@@ -312,7 +313,7 @@ def get_hrrrx_lake_data(lake_name, start_date, end_date, cycle_hours=list(range(
                         
                         # get temps
                         water_temps = np.squeeze(hrrr_output.variables['TMP_surface'][:].data)
-                        lake_water_temps = np.array([ water_temps[tuple(point)] for point in lake_meta['grid_idx'] ])
+                        lake_water_temps = np.array([ water_temps[tuple(eval(point))] for point in hrrr_gridpoints ])
 
                         # convert K to C
                         lake_water_temps = lake_water_temps - 272.15
@@ -327,22 +328,22 @@ def get_hrrrx_lake_data(lake_name, start_date, end_date, cycle_hours=list(range(
                         print(e)
 
                         # fill nans
-                        data['water_temp'] = [Decimal('NaN')]*len(lake_meta['grid_idx'])
+                        data['water_temp'] = [Decimal('NaN')]*len(hrrr_gridpoints)
                     
                 # failsafe (no nc4 and no grib2)
                 else:
                     # fill nans
-                    data['water_temp'] = [Decimal('NaN')]*len(lake_meta['grid_idx'])
+                    data['water_temp'] = [Decimal('NaN')]*len(hrrr_gridpoints)
 
                 # save to db
-                for i in range(len(lake_meta['grid_idx'])):
+                for i in range(len(hrrr_gridpoints)):
                     record = models.HRRRPred(**{ key: values[i] for key, values in data.items() })
                     record.save()
 
         curr_date += timedelta(days=1)
     
     # load all data from db
-    qs = models.HRRRPred.objects.filter(fcst_datetime__in=fcst_datetimes, pred_datetime__in=pred_datetimes).order_by('fcst_datetime', 'pred_datetime')
+    qs = models.HRRRPred.objects.filter(lake=lake, fcst_datetime__in=fcst_datetimes, pred_datetime__in=pred_datetimes).order_by('fcst_datetime', 'pred_datetime')
     df = pd.DataFrame.from_records(qs.values())
     return gpd.GeoDataFrame(df, crs='epsg:4326', geometry=[ Point(xy) for xy in zip(df.lon, df.lat) ])
 
