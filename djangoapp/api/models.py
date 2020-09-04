@@ -33,6 +33,21 @@ class HRRRPred(models.Model):
     water_temp = models.DecimalField(max_digits=4, decimal_places=2)
 
 
+class SSTPred(models.Model):
+
+    # lake point is located in
+    lake = models.ForeignKey('Lake', on_delete=models.PROTECT)
+    # index of point in SST grid
+    grid_idx = models.CharField(max_length=16)
+    # lon, lat
+    lon = models.DecimalField(max_digits=7, decimal_places=4)
+    lat = models.DecimalField(max_digits=7, decimal_places=4)
+    # SST Cycle Date and Hour (UTC)
+    datetime = models.DateTimeField()
+    # deg C
+    water_temp = models.DecimalField(max_digits=4, decimal_places=2)
+
+
 class Station(models.Model):
 
     # unique string id for lookup

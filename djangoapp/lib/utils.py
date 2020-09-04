@@ -238,6 +238,7 @@ def get_hrrrx_output_for_lake(lake, start_date, end_date, cycle_hours=list(range
     # file host
     grib2_host = 'https://pando-rgw01.chpc.utah.edu'
 
+    # keep list of all datatimes for retrieval later
     fcst_datetimes, pred_datetimes = [], []
 
     curr_date = start_date
@@ -253,8 +254,6 @@ def get_hrrrx_output_for_lake(lake, start_date, end_date, cycle_hours=list(range
 
                 fcst_datetime = pytz.utc.localize(datetime.fromordinal(curr_date.toordinal()) + timedelta(hours=cycle))
                 pred_datetime = pytz.utc.localize(datetime.fromordinal(curr_date.toordinal()) + timedelta(hours=cycle+pred))
-
-                # keep list of all datatimes for retrieval later
                 fcst_datetimes.append(fcst_datetime)
                 pred_datetimes.append(pred_datetime)
 
@@ -354,7 +353,7 @@ def get_hrrrx_output_for_lake(lake, start_date, end_date, cycle_hours=list(range
 
 def get_sst_water_gridpoints():
     # load any dataset
-    sst_metadata = Dataset(os.path.join(DATA_DIR, "sst_nowcoast_jun2020/20200601_0600_sport_nhemis_sstcomp_2km.nc"), "r", format="NETCDF4")
+    sst_metadata = Dataset(os.path.join(DATA_DIR, "sst_nowcoast/202006/20200601_0600_sport_nhemis_sstcomp_2km_unscaled.nc"), "r", format="NETCDF4")
 
     water_mask = sst_metadata.variables['Band1'][:].mask
     water_points = []
@@ -373,14 +372,118 @@ def get_sst_water_gridpoints():
         'lat': [ lats[tuple(point)[0]] for point in water_points ]
     }
 
-def get_sst_lake_data(lake, start_date, end_date, cycle_hours=list(range(24))):
-    pass
-    # validate cycle hours
 
-    # loop thru date range
-        # loop thru cycle hours and get data
+def get_sst_output_for_lake(lake, start_date, end_date, cycle_hours=[6, 18]):
 
-    # save to db
+    # create list of lake points
+    sst_gridpoints = lake.sst_gridpoints.split(';')
+
+    # build sst dir
+    base_dir = os.path.join('sst_nowcoast')
+
+    # keep list of all datatimes for retrieval later
+    dts = []
+
+    curr_date = start_date
+    while curr_date <= end_date:
+        date_str = curr_date.strftime("%Y%m")
+        date_dir = os.path.join(base_dir, date_str)
+
+        if not os.path.isdir(os.path.join(DATA_DIR, date_dir)):
+            # folder for month not available, just continue to next month
+            print(f"{date_str} data not available.")
+            curr_date = curr_date.replace(month=1 if curr_date.month==12 else curr_date.month+1, day=curr_date.day)
+            continue
+
+        for cycle in cycle_hours:
+
+            dt = pytz.utc.localize(datetime.fromordinal(curr_date.toordinal()) + timedelta(hours=cycle))
+            dts.append(dt)
+
+            # check if already in database
+            if models.SSTPred.objects.filter(lake=lake, datetime=dt).exists():
+                print(f"{dt} already in db.")
+                continue
+
+            print(f"Retrieving {dt}")
+
+            # fill meta
+            lake_meta = get_sst_water_gridpoints()
+            lake_points_str = list(map(str, lake_meta['grid_idx']))
+            data = {
+                'lake': [lake]*len(sst_gridpoints),
+                'grid_idx': sst_gridpoints,
+                'lon': [ str(lake_meta['lon'][lake_points_str.index(point)]) for point in sst_gridpoints ],
+                'lat': [ str(lake_meta['lat'][lake_points_str.index(point)]) for point in sst_gridpoints ],
+                'datetime': [dt]*len(sst_gridpoints),
+            }
+
+            # build file info
+            filename = f'{curr_date.strftime("%Y%m%d")}_{cycle:02}00_sport_nhemis_sstcomp_2km'
+            nc4_filepath = os.path.join(DATA_DIR, date_dir, filename+'.nc' )
+
+            # if not exist, attempt to retrieve grib2 and convert
+            if not os.path.isfile(nc4_filepath):
+                # find tif file
+                tif_filepath = os.path.join(DATA_DIR, date_dir, filename+'.tif')
+                if not os.path.isfile(tif_filepath):
+                    print(f"{tif_filepath} missing.")
+
+                    # fill nans
+                    data['water_temp'] = [Decimal('NaN')]*len(sst_gridpoints)
+                else:
+                    # convert to netCDF4
+                    convert_cmd = ["gdal_translate", tif_filepath, nc4_filepath, "-ot", "Float32", "-of", "netcdf", "-co", "COMPRESS=LZW", "-co", "TILED=yes", "-scale", "0", "255", "25.232", "117.032"]
+                    result = subprocess.Popen(convert_cmd, stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
+                    out, rc = result.communicate()[0], result.returncode
+
+                    if rc != 0:
+                        print(f"Failed to convert {filename} to netcdf")
+                        
+                        # fill nans
+                        data['water_temp'] = [Decimal('NaN')]*len(sst_gridpoints)
+
+            # ensure nc4 file exists
+            if os.path.isfile(nc4_filepath):
+                # load dataset
+                try:
+                    sst_output = Dataset(nc4_filepath, "r", format="NETCDF4")
+                    
+                    # get temps
+                    water_temps = np.squeeze(sst_output.variables['Band1'][:].data)
+                    lake_water_temps = np.array([ water_temps[tuple(eval(point))] for point in sst_gridpoints ])
+
+                    # convert F to C
+                    lake_water_temps = (lake_water_temps - 32)*(5/9)
+
+                    # load lake points as geodataframe
+                    data['water_temp'] = [ Decimal(temp.item()) for temp in lake_water_temps ]
+
+                    sst_output.close()
+
+                except Exception as e:
+                    print(f"Failed to read data from {nc4_filepath}")
+                    print(e)
+
+                    # fill nans
+                    data['water_temp'] = [Decimal('NaN')]*len(sst_gridpoints)
+                
+            # failsafe (no nc4 and no grib2)
+            else:
+                # fill nans
+                data['water_temp'] = [Decimal('NaN')]*len(sst_gridpoints)
+
+            # save to db
+            for i in range(len(sst_gridpoints)):
+                record = models.SSTPred(**{ key: values[i] for key, values in data.items() })
+                record.save()
+
+        curr_date += timedelta(days=1)
+
+    # load all data from db
+    qs = models.SSTPred.objects.filter(lake=lake, datetime__in=dts).order_by('datetime')
+    df = pd.DataFrame.from_records(qs.values())
+    return gpd.GeoDataFrame(df, crs='epsg:4326', geometry=[ Point(xy) for xy in zip(df.lon, df.lat) ])
 
 
 #
