@@ -510,23 +510,11 @@ def load_usgs_seneca_lake_data():
                 data = json.load(f)
             
             # get station
-            if models.Station.objects.filter(str_id="usgs_seneca_lake").exists():
-                station = models.Station.objects.filter(str_id="usgs_seneca_lake").first()
+            if models.Station.objects.filter(name="USGS Buoy, Seneca Lake - Upper").exists():
+                station = models.Station.objects.filter(name="USGS Buoy, Seneca Lake - Upper").first()
             else:
-                # create station record for Seneca Lake
-                station = models.Station(
-                    str_id="usgs_seneca_lake",
-                    name="Seneca Lake Water Quality Buoy",
-                    owner="Hobart and William Smith Colleges, Finger Lake Institute",
-                    contact_name="John Halfman",
-                    lake_name="Seneca Lake",
-                    loc_desc="mid-lake, offshore of Clark's Point",
-                    lon=Decimal('76.9456'),
-                    lat=Decimal('42.8408'),
-                    sensor_type="YSI/Xylen EXO2 Water Quality Logger",
-                    ob_freq="hourly"
-                )
-                station.save()
+                print("Couldn't find Seneca station in db.")
+                return
 
             # save to db
             for i in range(3):
