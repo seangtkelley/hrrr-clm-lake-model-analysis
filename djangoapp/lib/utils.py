@@ -506,7 +506,7 @@ def load_usgs_seneca_lake_data():
         json_filepath = os.path.join(DATA_DIR, 'USGSBuoy', filename_base+'.json')
         if os.path.isfile(json_filepath):
             # open json
-            with open('../data/USGSBuoy/USGSBuoy-20200608-20200620-SenecaLake.json') as f:
+            with open('../data/insitu/USGSBuoy-20200608-20200620-SenecaLake.json') as f:
                 data = json.load(f)
             
             # get station
