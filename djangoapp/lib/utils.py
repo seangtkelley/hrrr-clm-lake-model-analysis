@@ -47,7 +47,7 @@ def load_metadata_into_db():
     station_meta = pd.read_csv(os.path.join(DATA_DIR, '2020-HRRRxCLM-SPoRT-Insitu-Points-Matchup.csv'))
 
     # find lake shapes
-    na_lakes = gpd.read_file(os.path.join(DATA_DIR, 'na_lakes/hydrography_p_lakes_v2.shp'))
+    na_lakes = gpd.read_file(os.path.join(DATA_DIR, 'na_lakes/hydrography_p_lakes_v2/hydrography_p_lakes_v2.shp'))
     na_lakes = na_lakes.to_crs(epsg=4326)
 
     # load hrrr metadata
