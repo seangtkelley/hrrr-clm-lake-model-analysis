@@ -44,11 +44,19 @@ USA_STATES = gpd.read_file(os.path.join(DATA_DIR, 'states_21basic', 'states.shp'
 def load_metadata_into_db():
 
     # read insitu stations file
-    station_meta = pd.read_csv(os.path.join(DATA_DIR, '2020-HRRRxCLM-SPoRT-Insitu-Points-Matchup.csv'))
+    station_meta = pd.read_csv(os.path.join(DATA_DIR, '2020-HRRRxCLM-SPoRT-Insitu-Points-Matchup-V2.csv'), dtype={
+        'NA Lakes Shapefile UIDENT': str,
+        'NH Lakes Shapefile GNIS_ID': str
+    })
+    station_meta = station_meta.dropna(how='all')
 
-    # find lake shapes
+    # find north america lake shapes
     na_lakes = gpd.read_file(os.path.join(DATA_DIR, 'na_lakes/hydrography_p_lakes_v2/hydrography_p_lakes_v2.shp'))
     na_lakes = na_lakes.to_crs(epsg=4326)
+
+    # find new hampshire lake shapes
+    nh_lakes = gpd.read_file(os.path.join(DATA_DIR, 'na_lakes/NH Water Bodies/NH Water Bodies.shp'))
+    nh_lakes = nh_lakes.to_crs(epsg=4326)
 
     # load hrrr metadata
     hrrr_lake_meta = get_hrrr_lake_gridpoints_with_meta_from_landuse()
@@ -64,46 +72,89 @@ def load_metadata_into_db():
     lake_records = {}
 
     # load lakes
-    for i, station in station_meta[station_meta['LAKE_UIDENT'].notna()].iterrows():
-        # check if lake already in db
-        if models.Lake.objects.filter(uident=station['LAKE_UIDENT']).exists():
-            lake_record = models.Lake.objects.filter(uident=station['LAKE_UIDENT']).first()
-
-        else:
-            lake_meta = na_lakes[na_lakes['UIDENT'] == station['LAKE_UIDENT']]
+    for i, station in station_meta[station_meta['In-Situ Obs Avail'].str.contains('Y')].iterrows():
+        # TODO: get this bullshit if to work pandas can suck my dick
+        if station['NA Lakes Shapefile UIDENT'] is not None:
+            # check if lake already in db
+            if models.Lake.objects.filter(uident=station['NA Lakes Shapefile UIDENT']).exists():
+                lake_record = models.Lake.objects.filter(uident=station['NA Lakes Shapefile UIDENT']).first()
+            
+            # TODO: see if na_lakes['UIDENT'] is int
+            lake_meta = na_lakes[na_lakes['UIDENT'] == int(station['NA Lakes Shapefile UIDENT'])]
             lake_bounds = lake_meta['geometry'].unary_union
 
-            # get hrrr indices
-            if 'lake' in hrrr_lake_meta.columns:
-                hrrr_lake_meta.drop(labels=['lake'], axis="columns", inplace=True)
-            hrrr_lake_meta['lake'] = hrrr_lake_meta.within(lake_bounds)
+            uident = station['NA Lakes Shapefile UIDENT']
+            gnis_id = None
 
-            # get sst indices
-            if 'lake' in sst_water_meta.columns:
-                sst_water_meta.drop(labels=['lake'], axis="columns", inplace=True)
-            sst_water_meta['lake'] = sst_water_meta.within(lake_bounds)
 
-            # save lake record
-            lake_record = models.Lake(
-                name=lake_meta['NAMEEN'].values[0],
-                uident=lake_meta['UIDENT'].values[0],
-                geojson=str(gpd.GeoSeries([lake_bounds]).__geo_interface__),
-                hrrr_gridpoints=';'.join(map(str, hrrr_lake_meta[hrrr_lake_meta['lake']]['grid_idx'])),
-                sst_gridpoints=';'.join(map(str, sst_water_meta[sst_water_meta['lake']]['grid_idx']))
-            )
-            lake_record.save()
+        elif station['NH Lakes Shapefile GNIS_ID'] is not None:
+            # check if lake already in db
+            if models.Lake.objects.filter(gnis_id=station['NH Lakes Shapefile GNIS_ID']).exists():
+                lake_record = models.Lake.objects.filter(gnis_id=station['NH Lakes Shapefile GNIS_ID']).first()
+            
+            # TODO: see if nh_lakes['GNIS_ID'] is int
+            lake_meta = nh_lakes[nh_lakes['GNIS_ID'] == station['NH Lakes Shapefile GNIS_ID']]
+            lake_bounds = lake_meta['geometry'].unary_union
+
+            uident = None
+            gnis_id = station['NH Lakes Shapefile GNIS_ID']
+
+        else:
+            continue
+
+        print(station['Name of Lake Forecast Location'])
+
+        # get hrrr indices
+        if 'lake' in hrrr_lake_meta.columns:
+            hrrr_lake_meta.drop(labels=['lake'], axis="columns", inplace=True)
+        hrrr_lake_meta['lake'] = hrrr_lake_meta.within(lake_bounds)
+
+        # get sst indices
+        if 'lake' in sst_water_meta.columns:
+            sst_water_meta.drop(labels=['lake'], axis="columns", inplace=True)
+        sst_water_meta['lake'] = sst_water_meta.within(lake_bounds)
+
+        # save lake record
+        # lake_record = models.Lake(
+        #     name=station['Lake Name'],
+        #     uident=uident,
+        #     gnis_id=gnis_id,
+        #     geojson=str(gpd.GeoSeries([lake_bounds]).__geo_interface__),
+        #     hrrr_gridpoints=';'.join(map(str, hrrr_lake_meta[hrrr_lake_meta['lake']]['grid_idx'])),
+        #     sst_gridpoints=';'.join(map(str, sst_water_meta[sst_water_meta['lake']]['grid_idx']))
+        # )
+        # lake_record.save()
+        print(dict(
+            name=station['Lake Name'],
+            uident=uident,
+            gnis_id=gnis_id,
+            geojson=str(gpd.GeoSeries([lake_bounds]).__geo_interface__),
+            hrrr_gridpoints=';'.join(map(str, hrrr_lake_meta[hrrr_lake_meta['lake']]['grid_idx'])),
+            sst_gridpoints=';'.join(map(str, sst_water_meta[sst_water_meta['lake']]['grid_idx']))
+        ))
 
         # create station record
-        station_record = models.Station(
-            name = f"{station['Source of Obs']}, {station['Lake Name']} - {station['Forecast Location']}",
-            url = station['URL'],
-            contact_name = station['Contact'],
-            lake = lake_record,
-            loc_desc = station['Forecast Location'],
+        # station_record = models.Station(
+        #     name = f"{station['Name of Lake Forecast Location']}, {station['Source of Obs']}",
+        #     url = station['URL or POC'] if 'http' in station['URL or POC'] else "",
+        #     contact_name= station['URL or POC'] if ('http' not in station['URL or POC']) and ('@' not in station['URL or POC']) else "",
+        #     contact_email= station['URL or POC'] if '@' in station['URL or POC'] else "",
+        #     lake = lake_record,
+        #     loc_desc = station['Name of Lake Forecast Location'].split('-')[-1],
+        #     lon = station['Lon (dec)'],
+        #     lat = station['Lat (dec)']
+        # )
+        # station_record.save()
+        print(dict(
+            name = f"{station['Name of Lake Forecast Location']}, {station['Source of Obs']}",
+            url = station['URL or POC'] if 'http' in station['URL or POC'] else "",
+            contact_name= station['URL or POC'] if ('http' not in station['URL or POC']) and ('@' not in station['URL or POC']) else "",
+            contact_email= station['URL or POC'] if '@' in station['URL or POC'] else "",
+            lake = 'above lmao',
+            loc_desc = station['Name of Lake Forecast Location'].split('-')[-1],
             lon = station['Lon (dec)'],
             lat = station['Lat (dec)']
-        )
-        station_record.save()
+        ))
 
 
 #

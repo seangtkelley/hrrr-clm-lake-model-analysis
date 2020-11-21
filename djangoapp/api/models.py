@@ -5,8 +5,10 @@ class Lake(models.Model):
 
     # name of lake
     name = models.CharField(max_length=256)
-    # uident for hydrography shapefile
-    uident = models.IntegerField()
+    # id for north america hydrography shapefile
+    uident = models.CharField(max_length=32, default=None, null=True)
+    # id for new hampshire hydrography shapefile
+    gnis_id = models.CharField(max_length=32, default=None, null=True)
     # geometry in geojson espg:4326
     geojson = models.TextField()
     
@@ -66,7 +68,7 @@ class Station(models.Model):
     # lake station is located in
     lake = models.ForeignKey('Lake', on_delete=models.PROTECT)
     # location description (e.g. mid-lake, offshore of Clark's Point)
-    loc_desc = models.CharField(max_length=256)
+    loc_desc = models.CharField(max_length=256, default=None, null=True)
     # lon, lat
     lon = models.DecimalField(max_digits=7, decimal_places=4)
     lat = models.DecimalField(max_digits=7, decimal_places=4)

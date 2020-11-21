@@ -1,33 +1,32 @@
 Name of Lake Forecast Location,Lake Name,State,NA Lakes Shapefile UIDENT,NH Lakes Shapefile GNIS_ID,HRRRx Lake Pt(s),SPoRT Lake Pixel(s),In-Situ Obs Avail,Source of Obs,Obs Station Id,Lat (dms),Lon (dms),Lat (dec),Lon (dec),URL or POC
 ,,,,,,,,,,,,,,
-Seneca Lake - Upper,Seneca Lake,NY,305402,,YES,YES,YES,USGS Buoy,425027076564401,"42°50'26.9""",76°56'44.1,42.840810,-76.945580,https://ny.water.usgs.gov/maps/habs/
-Cayuga Lake - Lower,Cayuga (Ithaca) Lake,NY,304102,,YES,YES,YES,Cornell University Station,NA,,,42.468374,-76.519270,http://www.cayugalake.cornell.edu/weather.php
-Skaneateles Lake  - Upper,Skaneateles,NY,304402,,YES,NO,YES,USGS Buoy,04236000,"42°56'41.16""","76°25'45.09""",42.944770,-76.429190,https://ny.water.usgs.gov/maps/habs/
+Seneca Lake - Upper,Seneca Lake,NY,305402,,YES,YES,YES,USGS Buoy,425027076564401,"42°50'26.9""",76°56'44.1,42.84081,-76.94558,https://ny.water.usgs.gov/maps/habs/
+Cayuga Lake - Lower,Cayuga (Ithaca) Lake,NY,304102,,YES,YES,YES,Cornell University Station,NA,,,42.468374,-76.51927,http://www.cayugalake.cornell.edu/weather.php
+Skaneateles Lake  - Upper,Skaneateles,NY,304402,,YES,NO,YES,USGS Buoy,04236000,"42°56'41.16""","76°25'45.09""",42.94477,-76.42919,https://ny.water.usgs.gov/maps/habs/
 Lake George - Lower,Lake George,NY,317302,,YES,YES,YES,Lake George Association Station,NA,,,43.426769,73.701973,Patrick Dowd of LGA
-Oneida Lake - Mid,Oneida Lake,NY,,,YES,YES,NO,none,none,,,43.205276,-75.943070,none
+Oneida Lake - Mid,Oneida Lake,NY,,,YES,YES,NO,none,none,,,43.205276,-75.94307,none
 Great Saratoga Lake - Mid,Great Saratoga Lake,NY,,,YES,YES,NO,none,none,,,43.019358,-73.739567,none
 Saratoga Lake - Mid,Saratoga Lake,NY,,,YES,YES,NO,none,none,,,43.017978,-73.741284,none
 ,,,,,,,,,,,,,,
-Lake Champlain  - Rouses Point,Lake Champlain,NY,555002,,YES,YES,YES,USGS Gage ,04295000,"44°59'46""","73°21'37""",44.996110,-73.360280,https://waterdata.usgs.gov/nwis/uv/?site_no=04295000
-Lake Champlain  - Valcour Island,Lake Champlain,NY,555002,,YES,YES,YES,Lake Champlain Research Institute Buoy,45178,"44°36'11""","73°23'38""",44.603000,-73.394000,https://www.ndbc.noaa.gov/station_page.php?station=45178
-Lake Champlain  - Champlain Bridge,Lake Champlain,NY,555002,,YES,YES,YES,Lake Champlain Research Institute Buoy,45188,"44°5'37"" ","73°25'22""",44.094000,-73.423000,https://www.ndbc.noaa.gov/station_page.php?station=45188
-Lake Champlain  - Port Henry,Lake Champlain,NY,555002,,YES,YES,YES,USGS Gage,04294413,"44°03'09.9""","73°27'12.6""",44.052520,-73.453500,https://waterdata.usgs.gov/nwis/uv/?site_no=04294413
-Lake Champlain  - Burlington,Lake Champlain,VT,555002,,YES,YES,YES,USGS Gage,04294500,"44°28'34"""," 73°13'19""",44.476110,-73.221940,https://waterdata.usgs.gov/nwis/uv/?site_no=04294500
+Lake Champlain  - Rouses Point,Lake Champlain,NY,555002,,YES,YES,YES,USGS Gage ,04295000,"44°59'46""","73°21'37""",44.99611,-73.36028,https://waterdata.usgs.gov/nwis/uv/?site_no=04295000
+Lake Champlain  - Valcour Island,Lake Champlain,NY,555002,,YES,YES,YES,Lake Champlain Research Institute Buoy,45178,"44°36'11""","73°23'38""",44.603,-73.394,https://www.ndbc.noaa.gov/station_page.php?station=45178
+Lake Champlain  - Champlain Bridge,Lake Champlain,NY,555002,,YES,YES,YES,Lake Champlain Research Institute Buoy,45188,"44°5'37"" ","73°25'22""",44.094,-73.423,https://www.ndbc.noaa.gov/station_page.php?station=45188
+Lake Champlain  - Port Henry,Lake Champlain,NY,555002,,YES,YES,YES,USGS Gage,04294413,"44°03'09.9""","73°27'12.6""",44.05252,-73.4535,https://waterdata.usgs.gov/nwis/uv/?site_no=04294413
+Lake Champlain  - Burlington,Lake Champlain,VT,555002,,YES,YES,YES,USGS Gage,04294500,"44°28'34"""," 73°13'19""",44.47611,-73.22194,https://waterdata.usgs.gov/nwis/uv/?site_no=04294500
 ,,,,,,,,,,,,,,
-Lake Sunapee  - Loon Island,Lake Sunapee,NH,,00871340,YES,YES,YES,Lake Sunapee Protective Association Buoy,NA,43° 23' 28.64,"72° 3' 28.51""",43.391290,-72.057920,Geoff Lizotte at LSPA
-Squam Lake - Mid,Squam Lake,NH,,00872720,YES,YES,YES,UNH Lakes Lay Monitoring Program ,NA,,,43.762193, -71.521771,Bob Craycraft at UNH
+Lake Sunapee  - Loon Island,Lake Sunapee,NH,,00871340,YES,YES,YES,Lake Sunapee Protective Association Buoy,NA,43° 23' 28.64,"72° 3' 28.51""",43.39129,-72.05792,Geoff Lizotte at LSPA
+Squam Lake - Mid,Squam Lake,NH,,00872720,YES,YES,YES,UNH Lakes Lay Monitoring Program ,NA,,,43.762193,-71.521771,Bob Craycraft at UNH
 Ossipee Lake - Mid,Ossipee Lake,NH,,00868936,YES,YES,NO,State of NH DES Volunteer Program,NA,,,43.788842,-71.137524,Sara Steiner at DES
 Lake Wentworth - Mid,Lake Wentworth,NH,,00870737,YES,YES,YES,UNH Lakes Lay Monitoring Program,NA,,,43.602174,-71.163292,Bob Craycraft at UNH
-Lake Winnipesaukee - Mid,Lake Winnipesaukee,NH,311902,,YES,YES,YES,UNH Lakes Lay Monitoring Program,NA,,,43.591532, -71.323397,Bob Craycraft at UNH
-Lake Winnipesaukee - Weirs Beach,Lake Winnipesaukee,NH,311902,,YES,YES,YES,State of NH Dept of Environmental Services,WEIN3,43°36'27,71°27'34,43.61028,-71.459440,https://www4.des.state.nh.us/Rti_home/station_information_display.asp?WID=winni&ID=WEIN3&NAME=Lake+Winnipesaukee&FULLPOND=Full+Lake+=+4.32+ft.+Local+=+504.32+ft.+above+sea+level
-,,,,,,,,,,,,,,https://www4.des.state.nh.us/rivertraksearch/search.html
-Umbagog Lake - Mid,Umbagog Lake,NH,,,YES,YES,NO,State of NH DES Volunteer Program,NA,,,44.776376,-71.043110,Sara Steiner at DES
+Lake Winnipesaukee - Mid,Lake Winnipesaukee,NH,311902,,YES,YES,YES,UNH Lakes Lay Monitoring Program,NA,,,43.591532,-71.323397,Bob Craycraft at UNH
+Lake Winnipesaukee - Weirs Beach,Lake Winnipesaukee,NH,311902,,YES,YES,YES,State of NH Dept of Environmental Services,WEIN3,43°36'27,71°27'34,43.61028,-71.45944,https://www4.des.state.nh.us/Rti_home/station_information_display.asp?WID=winni&ID=WEIN3&NAME=Lake+Winnipesaukee&FULLPOND=Full+Lake+=+4.32+ft.+Local+=+504.32+ft.+above+sea+level
+,,,,,,,,,,,,,,
+Umbagog Lake - Mid,Umbagog Lake,NH,,,YES,YES,NO,State of NH DES Volunteer Program,NA,,,44.776376,-71.04311,Sara Steiner at DES
 ,,,,,,,,,,,,,,
 Sebago Lake  - Lower ,Sebago Lake,ME,,,YES,YES,NO,Portland Water District Buoy (no obs COVID),NA,,,43.776201,-70.517655,https://www.pwd.org/sebago-lake-monitoring-buoy
-West Grand Lake - Grand Lake Stream,West Grant Lake,ME,,,YES,YES,YES,USGS Gage,01018900,"45°10'52""","67°46'41"" ",45.181110,-67.778060,https://waterdata.usgs.gov/nwis/uv/?site_no=01018900
-Grant Falls Lake-Lewy Lake,Grand Falls Lake,ME,299002,,YES,NO,YES,USGS Gage,01019300,"45°13'32.46""","67°34'37.39"" ",45.225680,-67.577050,https://waterdata.usgs.gov/nwis/uv/?site_no=01019300
-Moosehead Lake - Mid,Moosehead Lake,ME,,,YES,YES,NO,none,none,,,45.640160,-69.658968,none
+West Grand Lake - Grand Lake Stream,West Grant Lake,ME,,,YES,YES,YES,USGS Gage,01018900,"45°10'52""","67°46'41"" ",45.18111,-67.77806,https://waterdata.usgs.gov/nwis/uv/?site_no=01018900
+Grant Falls Lake-Lewy Lake,Grand Falls Lake,ME,299002,,YES,NO,YES,USGS Gage,01019300,"45°13'32.46""","67°34'37.39"" ",45.22568,-67.57705,https://waterdata.usgs.gov/nwis/uv/?site_no=01019300
+Moosehead Lake - Mid,Moosehead Lake,ME,,,YES,YES,NO,none,none,,,45.64016,-69.658968,none
 Rangeley Lake - Mid,Rangeley Lake,ME,,,YES,YES,NO,none,none,,,44.941522,-70.689507,none
 ,,,,,,,,,,,,,,
 Quabbin Reservoir - Upper,Quabbin Reservoir,MA,,,YES,YES,NO,MA Water Resources Authority,NA,,,42.390552,-71.712609,mandu.inyang@mwra.com
-,(Brutsch Water Treatment Facility),,,,,,,,,,,,,
