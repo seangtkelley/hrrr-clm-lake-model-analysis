@@ -268,6 +268,16 @@ def get_hrrrx_output_for_lake(lake, start_date, end_date, cycle_hours=list(range
 
     # keep list of all datatimes for retrieval later
     fcst_datetimes, pred_datetimes = [], []
+    
+    # fill meta
+    lake_meta = get_hrrr_lake_gridpoints_with_meta_from_landuse()
+    lake_points_str = list(map(str, lake_meta['grid_idx']))
+    data = {
+        'lake': [lake]*len(hrrr_gridpoints),
+        'grid_idx': hrrr_gridpoints,
+        'lon': [ str(lake_meta['lon'][lake_points_str.index(point)]) for point in hrrr_gridpoints ],
+        'lat': [ str(lake_meta['lat'][lake_points_str.index(point)]) for point in hrrr_gridpoints ]
+    }
 
     curr_date = start_date
     while curr_date <= end_date:
@@ -292,16 +302,8 @@ def get_hrrrx_output_for_lake(lake, start_date, end_date, cycle_hours=list(range
                 print(f"Retrieving {fcst_datetime}")
 
                 # fill meta
-                lake_meta = get_hrrr_lake_gridpoints_with_meta_from_landuse()
-                lake_points_str = list(map(str, lake_meta['grid_idx']))
-                data = {
-                    'lake': [lake]*len(hrrr_gridpoints),
-                    'grid_idx': hrrr_gridpoints,
-                    'lon': [ str(lake_meta['lon'][lake_points_str.index(point)]) for point in hrrr_gridpoints ],
-                    'lat': [ str(lake_meta['lat'][lake_points_str.index(point)]) for point in hrrr_gridpoints ],
-                    'fcst_datetime': [fcst_datetime]*len(hrrr_gridpoints),
-                    'pred_datetime': [pred_datetime]*len(hrrr_gridpoints),
-                }
+                data['fcst_datetime'] = [fcst_datetime]*len(hrrr_gridpoints)
+                data['pred_datetime'] = [pred_datetime]*len(hrrr_gridpoints)
 
                 # build file info
                 filename = f'hrrrX.t{cycle:02}z.wrfsfcf{pred:02}'
@@ -412,6 +414,16 @@ def get_sst_output_for_lake(lake, start_date, end_date, cycle_hours=[6, 18]):
     # keep list of all datatimes for retrieval later
     dts = []
 
+    # fill meta
+    lake_meta = get_sst_water_gridpoints()
+    lake_points_str = list(map(str, lake_meta['grid_idx']))
+    data = {
+        'lake': [lake]*len(sst_gridpoints),
+        'grid_idx': sst_gridpoints,
+        'lon': [ str(lake_meta['lon'][lake_points_str.index(point)]) for point in sst_gridpoints ],
+        'lat': [ str(lake_meta['lat'][lake_points_str.index(point)]) for point in sst_gridpoints ]
+    }
+
     curr_date = start_date
     while curr_date <= end_date:
         date_str = curr_date.strftime("%Y%m")
@@ -435,16 +447,7 @@ def get_sst_output_for_lake(lake, start_date, end_date, cycle_hours=[6, 18]):
 
             print(f"Retrieving {dt}")
 
-            # fill meta
-            lake_meta = get_sst_water_gridpoints()
-            lake_points_str = list(map(str, lake_meta['grid_idx']))
-            data = {
-                'lake': [lake]*len(sst_gridpoints),
-                'grid_idx': sst_gridpoints,
-                'lon': [ str(lake_meta['lon'][lake_points_str.index(point)]) for point in sst_gridpoints ],
-                'lat': [ str(lake_meta['lat'][lake_points_str.index(point)]) for point in sst_gridpoints ],
-                'datetime': [dt]*len(sst_gridpoints),
-            }
+            data['datetime'] = [dt]*len(sst_gridpoints)
 
             # build file info
             filename = f'{curr_date.strftime("%Y%m%d")}_{cycle:02}00_sport_nhemis_sstcomp_2km'
