@@ -534,7 +534,7 @@ def load_usgs_seneca_lake_data():
         # download_url_prog(url, grb2_filepath)
 
         print('Download not implemented for csv.')
-        json_filepath = os.path.join(DATA_DIR, 'USGSBuoy', filename_base+'.json')
+        json_filepath = os.path.join(DATA_DIR, filename_base+'.json')
         if os.path.isfile(json_filepath):
             # open json
             with open('../data/insitu/USGSBuoy-20200608-20200620-SenecaLake.json') as f:
@@ -586,3 +586,14 @@ def legend_without_duplicate_labels(ax):
     handles, labels = ax.get_legend_handles_labels()
     unique = [(h, l) for i, (h, l) in enumerate(zip(handles, labels)) if l not in labels[:i]]
     ax.legend(*zip(*unique))
+
+
+# https://stackoverflow.com/questions/30112202/how-do-i-find-the-closest-values-in-a-pandas-series-to-an-input-number
+def find_neighbours(df, field, value):
+    exactmatch = df[df[field] == value]
+    if not exactmatch.empty:
+        return exactmatch.index
+    else:
+        lowerneighbour_ind = df[df[field] < value][field].idxmax() if len(df[df[field] < value][field]) > 1 else 0
+        upperneighbour_ind = df[df[field] > value][field].idxmin() if len(df[df[field] > value][field]) > 1 else 0
+        return [lowerneighbour_ind, upperneighbour_ind]

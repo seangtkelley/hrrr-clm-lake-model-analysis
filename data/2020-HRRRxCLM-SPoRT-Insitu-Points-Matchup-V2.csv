@@ -3,7 +3,7 @@ Name of Lake Forecast Location,Lake Name,State,NA Lakes Shapefile UIDENT,NH Lake
 Seneca Lake - Upper,Seneca Lake,NY,305402,,YES,YES,YES,USGS Buoy,425027076564401,"42°50'26.9""",76°56'44.1,42.84081,-76.94558,https://ny.water.usgs.gov/maps/habs/
 Cayuga Lake - Lower,Cayuga (Ithaca) Lake,NY,304102,,YES,YES,YES,Cornell University Station,NA,,,42.468374,-76.51927,http://www.cayugalake.cornell.edu/weather.php
 Skaneateles Lake  - Upper,Skaneateles Lake,NY,304402,,YES,NO,YES,USGS Buoy,04236000,"42°56'41.16""","76°25'45.09""",42.94477,-76.42919,https://ny.water.usgs.gov/maps/habs/
-Lake George - Lower,Lake George,NY,317302,,YES,YES,YES,Lake George Association Station,NA,,,43.426769,73.701973,Patrick Dowd of LGA
+Lake George - Lower,Lake George,NY,317302,,YES,YES,YES,Lake George Association Station,NA,,,43.426769,-73.701973,Patrick Dowd of LGA
 Oneida Lake - Mid,Oneida Lake,NY,,,YES,YES,NO,none,none,,,43.205276,-75.94307,none
 Great Saratoga Lake - Mid,Great Saratoga Lake,NY,,,YES,YES,NO,none,none,,,43.019358,-73.739567,none
 Saratoga Lake - Mid,Saratoga Lake,NY,,,YES,YES,NO,none,none,,,43.017978,-73.741284,none
