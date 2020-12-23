@@ -442,7 +442,7 @@ def get_sst_output_for_lake(lake, start_date, end_date, cycle_hours=[6, 18]):
 
             # check if already in database
             if models.SSTPred.objects.filter(lake=lake, datetime=dt).exists():
-                print(f"{dt} already in db.")
+                # print(f"{dt} already in db.")
                 continue
 
             print(f"Retrieving {dt}")
