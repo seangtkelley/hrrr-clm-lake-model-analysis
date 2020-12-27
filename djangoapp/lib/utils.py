@@ -592,7 +592,7 @@ def legend_without_duplicate_labels(ax):
 def find_neighbours(df, field, value):
     exactmatch = df[df[field] == value]
     if not exactmatch.empty:
-        return exactmatch.index
+        return exactmatch.index[0]
     else:
         lowerneighbour_ind = df[df[field] < value][field].idxmax() if len(df[df[field] < value][field]) > 1 else 0
         upperneighbour_ind = df[df[field] > value][field].idxmin() if len(df[df[field] > value][field]) > 1 else 0
