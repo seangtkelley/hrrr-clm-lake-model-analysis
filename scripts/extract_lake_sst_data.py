@@ -1,13 +1,19 @@
-import os
+import os, sys
 import subprocess
 from decimal import Decimal
 
 from netCDF4 import Dataset
+import numpy as np
 import pandas as pd
 import geopandas as gpd
 from shapely.geometry import Point, Polygon
+import django
 
-from djangoapp.lib import utils
+sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), 'djangoapp'))
+os.environ["DJANGO_SETTINGS_MODULE"] = "config.settings"
+os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "true"
+django.setup()
+from lib import utils
 
 
 # find north america lake shapes
@@ -64,21 +70,21 @@ lake_uidents = {
 	"Lake Nipigon": 535302
     }
 
-tif_dir = os.path.join(DATA_DIR, 'sst_extract', 'tif')
-nc4_dir = os.path.join(DATA_DIR, 'sst_extract', 'nc4')
-csv_dir = os.path.join(DATA_DIR, 'sst_extract', 'csv')
+tif_dir = os.path.join(utils.DATA_DIR, 'sst_extract', 'tif')
+nc4_dir = os.path.join(utils.DATA_DIR, 'sst_extract', 'nc4')
+csv_dir = os.path.join(utils.DATA_DIR, 'sst_extract', 'csv')
 
 # first time, create csv dir for results
-if not os.isdir(csv_dir):
-    os.mkdir(csv_dir)
+if not os.path.exists(csv_dir):
+    os.makedirs(csv_dir)
 
 # first time, convert geotiff to netcdf4
-if not os.isdir(nc4_dir):
-    os.mkdir(nc4_dir)
+if not os.path.exists(nc4_dir):
+    os.makedirs(nc4_dir)
 
     for tif_filename in os.listdir(tif_dir):
         tif_filepath = os.path.join(tif_dir, tif_filename)
-        nc4_filepath = tif_filepath.split(".")[0]+".nc"
+        nc4_filepath = os.path.join(nc4_dir, tif_filename.split(".")[0]+".nc")
 
         # retrieve geotiff and convert to netCDF4
         convert_cmd = ["gdal_translate", tif_filepath, nc4_filepath, "-ot", "Float32", "-of", "netcdf", "-co", "COMPRESS=LZW", "-co", "TILED=yes", "-scale", "0", "255", "25.232", "117.032"]
@@ -90,7 +96,6 @@ if not os.isdir(nc4_dir):
             continue
 
 # load lakes
-lake_records = []
 for name, uident in lake_uidents.items():
     # get lake meta from na_lakes df
     if isinstance(uident, list):
@@ -141,15 +146,15 @@ for name, uident in lake_uidents.items():
             'water_temp': lake_water_temps
         })
 
-        lake_csv_dir = os.path.join(csv_dir, name.replace('Lake', '').strip())
+        lake_csv_dir = os.path.join(csv_dir, name.replace(" ", ""))
         # first time, create csv dir for lake data
-        if not os.isdir(lake_csv_dir):
-            os.mkdir(lake_csv_dir)
+        if not os.path.exists(lake_csv_dir):
+            os.makedirs(lake_csv_dir)
 
         # write data to csv file
-        lake_csv_filename = name.replace(" ", "") + nc4_filename.split(".")[0] + ".csv"
+        lake_csv_filename = name.replace(" ", "") + "_" + nc4_filename.split(".")[0] + ".csv"
         lake_csv_filepath = os.path.join(lake_csv_dir, lake_csv_filename)
-        lake_data_df.to_csv(lake_csv_filepath)
+        lake_data_df.to_csv(lake_csv_filepath, index=False)
     
 
         

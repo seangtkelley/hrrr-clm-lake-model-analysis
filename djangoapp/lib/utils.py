@@ -382,8 +382,8 @@ def get_hrrrx_output_for_lake(lake, start_date, end_date, cycle_hours=list(range
 #
 
 def get_sst_water_gridpoints():
-    # load any dataset
-    sst_metadata = Dataset(os.path.join(DATA_DIR, "sst_nowcoast/202006/20200601_0600_sport_nhemis_sstcomp_2km_unscaled.nc"), "r", format="NETCDF4")
+    # load saved dataset with mask
+    sst_metadata = Dataset(os.path.join(DATA_DIR, "20200601_0600_sport_nhemis_sstcomp_2km_unscaled.nc"), "r", format="NETCDF4")
 
     water_mask = sst_metadata.variables['Band1'][:].mask
     water_points = []

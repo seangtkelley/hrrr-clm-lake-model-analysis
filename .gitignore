@@ -1,8 +1,10 @@
 data/hrrrv4.geo_em.d01.nc
+data/20200601_0600_sport_nhemis_sstcomp_2km_unscaled.nc
 data/states_21basic/
 .ipynb_checkpoints/
 .vscode/
 __pycache__/
 data/hrrrX/
 data/sst_nowcoast/
+data/sst_extract/
 keys.json
