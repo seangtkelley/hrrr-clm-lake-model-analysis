@@ -74,11 +74,11 @@ tif_dir = os.path.join(utils.DATA_DIR, 'sst_extract', 'tif')
 nc4_dir = os.path.join(utils.DATA_DIR, 'sst_extract', 'nc4')
 csv_dir = os.path.join(utils.DATA_DIR, 'sst_extract', 'csv')
 
-# first time, create csv dir for results
+# create csv dir for results
 if not os.path.exists(csv_dir):
     os.makedirs(csv_dir)
 
-# first time, convert geotiff to netcdf4
+# convert geotiff to netcdf4 if needed
 if not os.path.exists(nc4_dir):
     os.makedirs(nc4_dir)
 
@@ -130,7 +130,7 @@ for name, uident in lake_uidents.items():
             lake_water_temps = (lake_water_temps - 32)*(5/9)
 
             # load lake points as Decimal
-            lake_water_temps = [ Decimal(temp.item()) for temp in lake_water_temps ]
+            lake_water_temps = [ Decimal(f"{temp.item():.2f}") for temp in lake_water_temps ]
 
             sst_output.close()
 
@@ -145,6 +145,12 @@ for name, uident in lake_uidents.items():
             'lat': sst_lat,
             'water_temp': lake_water_temps
         })
+
+        # replace -3.76 with Decimal('NaN')
+        # -3.76 C == 25.232 F is the lower bound for tiff pixel conversion to netcdf temp
+        # it's basicall a zero value for that pixel in the image, which is taken to be invalid,
+        # given it is below freezing.
+        lake_data_df['water_temp'] = lake_data_df['water_temp'].replace(Decimal('-3.76'), Decimal('NaN'))
 
         lake_csv_dir = os.path.join(csv_dir, name.replace(" ", ""))
         # first time, create csv dir for lake data

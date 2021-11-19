@@ -348,7 +348,7 @@ def get_hrrrx_output_for_lake(lake, start_date, end_date, cycle_hours=list(range
                         lake_water_temps = lake_water_temps - 272.15
 
                         # load lake points as geodataframe
-                        data['water_temp'] = [ Decimal(temp.item()) for temp in lake_water_temps ]
+                        data['water_temp'] = [ Decimal(f"{temp.item():.2f}") for temp in lake_water_temps ]
 
                         hrrr_output.close()
 
@@ -488,7 +488,7 @@ def get_sst_output_for_lake(lake, start_date, end_date, cycle_hours=[6, 18]):
                     lake_water_temps = (lake_water_temps - 32)*(5/9)
 
                     # load lake points as geodataframe
-                    data['water_temp'] = [ Decimal(temp.item()) for temp in lake_water_temps ]
+                    data['water_temp'] = [ Decimal(f"{temp.item():.2f}") for temp in lake_water_temps ]
 
                     sst_output.close()
 
