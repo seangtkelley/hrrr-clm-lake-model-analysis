@@ -96,7 +96,10 @@ if not os.path.exists(nc4_dir):
             continue
 
 # load lakes
-for name, uident in lake_uidents.items():
+avgs = {
+    "Lake Name": list(sorted(lake_uidents.keys()))
+}
+for name, uident in sorted(lake_uidents.items()):
     # get lake meta from na_lakes df
     if isinstance(uident, list):
         lake_meta = na_lakes[na_lakes['UIDENT'].isin(uident)]
@@ -115,7 +118,8 @@ for name, uident in lake_uidents.items():
     sst_lat = list(map(str, sst_water_meta[sst_water_meta['lake']]['lat']))
 
     # for each nc4 file, extract data
-    for nc4_filename in os.listdir(nc4_dir):
+    day_avg_cache = []
+    for nc4_filename in sorted(os.listdir(nc4_dir)):
         nc4_filepath = os.path.join(nc4_dir, nc4_filename)
 
         # load dataset
@@ -125,9 +129,6 @@ for name, uident in lake_uidents.items():
             # get temps
             water_temps = np.squeeze(sst_output.variables['Band1'][:].data)
             lake_water_temps = np.array([ water_temps[tuple(eval(point))] for point in sst_gridpoints ])
-
-            # convert F to C
-            lake_water_temps = (lake_water_temps - 32)*(5/9)
 
             # load lake points as Decimal
             lake_water_temps = [ Decimal(f"{temp.item():.2f}") for temp in lake_water_temps ]
@@ -146,11 +147,11 @@ for name, uident in lake_uidents.items():
             'water_temp': lake_water_temps
         })
 
-        # replace -3.76 with Decimal('NaN')
+        # replace 25.23 with np.nan
         # -3.76 C == 25.232 F is the lower bound for tiff pixel conversion to netcdf temp
         # it's basicall a zero value for that pixel in the image, which is taken to be invalid,
         # given it is below freezing.
-        lake_data_df['water_temp'] = lake_data_df['water_temp'].replace(Decimal('-3.76'), Decimal('NaN'))
+        lake_data_df['water_temp'] = lake_data_df['water_temp'].replace(Decimal('25.23'), np.nan)
 
         lake_csv_dir = os.path.join(csv_dir, name.replace(" ", ""))
         # first time, create csv dir for lake data
@@ -161,6 +162,25 @@ for name, uident in lake_uidents.items():
         lake_csv_filename = name.replace(" ", "") + "_" + nc4_filename.split(".")[0] + ".csv"
         lake_csv_filepath = os.path.join(lake_csv_dir, lake_csv_filename)
         lake_data_df.to_csv(lake_csv_filepath, index=False)
-    
 
+        # extend cache with this hour's preds
+        day_avg_cache.extend(list(lake_data_df['water_temp']))
+
+        # calculate average
+        if "1800" in nc4_filename:
+            # avg all of day's preds
+            lake_avg = pd.Series(day_avg_cache).dropna().mean()
+            lake_avg = Decimal(f"{lake_avg:.2f}")
         
+            # add average to dict
+            col_name = nc4_filename.split('_')[0] # date
+            if col_name not in avgs:
+                avgs[col_name] = [ lake_avg ]
+            else:
+                avgs[col_name].append(lake_avg)
+            
+            # reset cache
+            day_avg_cache = []
+
+avgs_df = pd.DataFrame.from_dict(avgs)
+avgs_df.to_csv(os.path.join(csv_dir, "lake_averages.csv"), index=False)
