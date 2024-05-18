@@ -118,7 +118,6 @@ for name, uident in sorted(lake_uidents.items()):
     sst_lat = list(map(str, sst_water_meta[sst_water_meta['lake']]['lat']))
 
     # for each nc4 file, extract data
-    day_avg_cache = []
     for nc4_filename in sorted(os.listdir(nc4_dir)):
         nc4_filepath = os.path.join(nc4_dir, nc4_filename)
 
@@ -163,13 +162,12 @@ for name, uident in sorted(lake_uidents.items()):
         lake_csv_filepath = os.path.join(lake_csv_dir, lake_csv_filename)
         lake_data_df.to_csv(lake_csv_filepath, index=False)
 
-        # extend cache with this hour's preds
-        day_avg_cache.extend(list(lake_data_df['water_temp']))
+        # calculate average ONLY using 0600Z preds
+        if "0600" in nc4_filename: 
+            # avg preds
+            lake_avg = lake_data_df['water_temp'].dropna().mean()
 
-        # calculate average
-        if "1800" in nc4_filename:
-            # avg all of day's preds
-            lake_avg = pd.Series(day_avg_cache).dropna().mean()
+            # truncate float
             lake_avg = Decimal(f"{lake_avg:.2f}")
         
             # add average to dict
@@ -178,9 +176,6 @@ for name, uident in sorted(lake_uidents.items()):
                 avgs[col_name] = [ lake_avg ]
             else:
                 avgs[col_name].append(lake_avg)
-            
-            # reset cache
-            day_avg_cache = []
 
 avgs_df = pd.DataFrame.from_dict(avgs)
 avgs_df.to_csv(os.path.join(csv_dir, "lake_averages.csv"), index=False)

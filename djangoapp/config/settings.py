@@ -18,7 +18,7 @@ DJANGO_BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PROJECT_BASE_DIR = os.path.dirname(DJANGO_BASE_DIR)
 sys.path.append(DJANGO_BASE_DIR)
 
-with open('keys.json', 'r') as f:
+with open(os.path.join(DJANGO_BASE_DIR, 'config', 'keys.json'), 'r') as f:
     keys = json.loads(f.read())
 
 
